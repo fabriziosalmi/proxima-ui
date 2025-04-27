@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Proxmox Hosts</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('add_host') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Host
+        </a>
+    </div>
+</div>
+
+{% if hosts %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for host_id, host_info in hosts.items() %}
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-server"></i> 
+                        {{ host_info.host }}:{{ host_info.port }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Username:</strong> {{ host_info.user }}</p>
+                    <p><strong>SSL Verification:</strong> 
+                        {% if host_info.verify_ssl %}
+                            <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                            <span class="badge bg-warning">Disabled</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{{ url_for('host_details', host_id=host_id) }}" class="btn btn-info btn-sm">
+                        <i class="fas fa-info-circle"></i> Details
+                    </a>
+                    <a href="{{ url_for('remove_host', host_id=host_id) }}" class="btn btn-danger btn-sm" 
+                       onclick="return confirm('Are you sure you want to remove this host?');">
+                        <i class="fas fa-trash"></i> Remove
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> No Proxmox hosts configured. 
+        <a href="{{ url_for('add_host') }}">Add a host</a> to get started.
+    </div>
+{% endif %}
+{% endblock %}

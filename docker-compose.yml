@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  proxmox-ui:
+    build: .
+    ports:
+      - "5011:5000"
+    volumes:
+      - ./app:/app/app
+      - proxmox-data:/app/data
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - SECRET_KEY=your-secret-key-change-this-in-production
+      - CONNECTIONS_FILE=/app/data/proxmox_connections.pkl
+    restart: unless-stopped
+
+volumes:
+  proxmox-data:
+    # This creates a named volume to persist connection data

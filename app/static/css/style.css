@@ -1,0 +1,31 @@
+/* Custom styles for Proxmox UI */
+
+/* Add some padding to the main content */
+body {
+    padding-bottom: 2rem;
+}
+
+/* Style for the footer */
+.footer {
+    position: relative;
+    bottom: 0;
+    width: 100%;
+    background-color: #f8f9fa;
+}
+
+/* Improve card spacing */
+.card {
+    margin-bottom: 1rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Style progress bars */
+.progress {
+    height: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* Status badges */
+.badge {
+    font-size: 85%;
+}

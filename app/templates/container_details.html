@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Container Details{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item active">Container {{ vmid }}</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-box"></i> Container: {{ container_info.name }}</h1>
+    </div>
+    <div class="col-auto">
+        <div class="btn-group" role="group">
+            {% if container_info.status == 'running' %}
+                <button type="button" class="btn btn-warning container-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
+                    <i class="fas fa-power-off"></i> Shutdown
+                </button>
+                <button type="button" class="btn btn-danger container-action" data-action="stop" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
+                    <i class="fas fa-stop"></i> Stop
+                </button>
+            {% else %}
+                <button type="button" class="btn btn-success container-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
+                    <i class="fas fa-play"></i> Start
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Container Status</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th>Status</th>
+                        <td>
+                            {% if container_info.status == 'running' %}
+                                <span class="badge bg-success">Running</span>
+                            {% elif container_info.status == 'stopped' %}
+                                <span class="badge bg-danger">Stopped</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ container_info.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>CTID</th>
+                        <td>{{ vmid }}</td>
+                    </tr>
+                    <tr>
+                        <th>Name</th>
+                        <td>{{ container_info.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Uptime</th>
+                        <td>
+                            {% if container_info.status == 'running' %}
+                                {{ (container_info.uptime / 60)|round(0) }} minutes
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Hardware Resources</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th>CPUs</th>
+                        <td>{{ container_info.cpus }}</td>
+                    </tr>
+                    <tr>
+                        <th>Memory</th>
+                        <td>{{ (container_info.maxmem / (1024*1024))|round(0) }} MB</td>
+                    </tr>
+                    <tr>
+                        <th>CPU Usage</th>
+                        <td>
+                            {% if container_info.status == 'running' %}
+                                {{ (container_info.cpu * 100)|round(2) }}%
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: {{ (container_info.cpu * 100)|round(2) }}%" 
+                                        aria-valuenow="{{ (container_info.cpu * 100)|round(2) }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Memory Usage</th>
+                        <td>
+                            {% if container_info.status == 'running' %}
+                                {{ (container_info.mem / (1024*1024))|round(0) }} MB
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" 
+                                        style="width: {{ (container_info.mem / container_info.maxmem * 100)|round(2) }}%" 
+                                        aria-valuenow="{{ (container_info.mem / container_info.maxmem * 100)|round(2) }}" 
+                                        aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5>Network</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Interface</th>
+                            <th>IPv4</th>
+                            <th>MAC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key, net in container_info.get('net', {}).items() %}
+                        <tr>
+                            <td>{{ key }}</td>
+                            <td>{{ net.get('ip', 'N/A') }}</td>
+                            <td>{{ net.get('hwaddr', 'N/A') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('.container-action').click(function() {
+            const action = $(this).data('action');
+            const hostId = $(this).data('host-id');
+            const node = $(this).data('node');
+            const vmid = $(this).data('vmid');
+            
+            if (confirm(`Are you sure you want to ${action} container ${vmid}?`)) {
+                $.post('/api/container/action', {
+                    host_id: hostId,
+                    node: node,
+                    vmid: vmid,
+                    action: action
+                }).done(function(data) {
+                    if (data.success) {
+                        alert('Action was successful. Page will reload.');
+                        location.reload();
+                    } else {
+                        alert(`Error: ${data.error}`);
+                    }
+                }).fail(function() {
+                    alert('Failed to perform action. Please try again.');
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

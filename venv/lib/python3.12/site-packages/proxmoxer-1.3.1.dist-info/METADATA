@@ -1,0 +1,142 @@
+Metadata-Version: 2.1
+Name: proxmoxer
+Version: 1.3.1
+Summary: Python Wrapper for the Proxmox 2.x API (HTTP and SSH)
+Home-page: https://proxmoxer.github.io/docs/
+Download-URL: http://pypi.python.org/pypi/proxmoxer
+Author: Oleg Butovich
+Author-email: obutovich@gmail.com
+License: MIT
+Keywords: proxmox,api
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: System :: Clustering
+Classifier: Topic :: System :: Monitoring
+Classifier: Topic :: System :: Systems Administration
+Description-Content-Type: text/x-rst
+License-File: LICENSE.txt
+Requires-Dist: shellescape (>=3.0.0) ; python_version < "3.3"
+
+=========================================
+Proxmoxer: A wrapper for Proxmox REST API
+=========================================
+
+master branch:  |master_build_status| |master_coverage_status| |pypi_version| |pypi_downloads|
+
+develop branch: |develop_build_status| |develop_coverage_status|
+
+
+Proxmoxer is a python wrapper around the `Proxmox REST API v2 <https://pve.proxmox.com/pve-docs/api-viewer/index.html>`_.
+It currently supports the Proxmox services of Proxmox Virtual Environment (PVE), Proxmox Mail Gateway (PMG), and Proxmox Backup Server (PBS).
+
+It was inspired by slumber, but it is dedicated only to Proxmox. It allows not only REST API use over HTTPS, but
+the same api over ssh and pvesh utility.
+
+Like `Proxmoxia <https://github.com/baseblack/Proxmoxia>`_, it dynamically creates attributes which responds to the
+attributes you've attempted to reach.
+
+Full Documentation is available at https://proxmoxer.github.io/docs/
+--------------------------------------------------------------------
+
+Installation
+............
+
+::
+
+    pip install proxmoxer
+
+To use the 'https' backend, install requests
+
+::
+
+    pip install requests
+
+To use the 'ssh_paramiko' backend, install paramiko
+
+::
+
+    pip install paramiko
+
+To use the 'openssh' backend, install openssh_wrapper
+
+::
+
+    pip install openssh_wrapper
+
+
+Short usage information
+.......................
+
+The first thing to do is import the proxmoxer library and create ProxmoxAPI instance.
+
+::
+
+    from proxmoxer import ProxmoxAPI
+
+    proxmox = ProxmoxAPI(
+        "proxmox_host", user="admin@pam", password="secret_word", verify_ssl=False
+    )
+
+This will connect by default to PVE through the 'https' backend.
+
+**Note: ensure you have the required libraries (listed above) for the connection method you are using**
+
+Queries are exposed via the access methods **get**, **post**, **put** and **delete**. For convenience two
+synonyms are available: **create** for **post**, and **set** for **put**.
+
+Using the paths from the `PVE API v2 <https://pve.proxmox.com/pve-docs/api-viewer/index.html>`_, you can create
+API calls using the access methods above.
+
+::
+
+    >>> for node in proxmox.nodes.get():
+    ...     for vm in proxmox.nodes(node["node"]).openvz.get():
+    ...         print "{0}. {1} => {2}".format(vm["vmid"], vm["name"], vm["status"])
+    ...
+
+    141. puppet-2.london.example.com => running
+    101. munki.london.example.com => running
+    102. redmine.london.example.com => running
+    140. dns-1.london.example.com => running
+    126. ns-3.london.example.com => running
+    113. rabbitmq.london.example.com => running
+
+
+See Changelog in `CHANGELOG.md <https://github.com/proxmoxer/proxmoxer/blob/develop/CHANGELOG.md>`_
+...................................................................................................
+
+.. |master_build_status| image:: https://github.com/proxmoxer/proxmoxer/actions/workflows/ci.yaml/badge.svg?branch=master
+    :target: https://github.com/proxmoxer/proxmoxer/actions
+
+.. |master_coverage_status| image:: https://coveralls.io/repos/proxmoxer/proxmoxer/badge.png?branch=master
+    :target: https://coveralls.io/r/proxmoxer/proxmoxer
+
+.. |develop_build_status| image:: https://github.com/proxmoxer/proxmoxer/actions/workflows/ci.yaml/badge.svg?branch=develop
+    :target: https://github.com/proxmoxer/proxmoxer/actions
+
+.. |develop_coverage_status| image:: https://coveralls.io/repos/proxmoxer/proxmoxer/badge.png?branch=develop
+    :target: https://coveralls.io/r/proxmoxer/proxmoxer
+
+.. |pypi_version| image:: https://img.shields.io/pypi/v/proxmoxer.svg
+    :target: https://pypi.python.org/pypi/proxmoxer
+
+.. |pypi_downloads| image:: https://img.shields.io/pypi/dm/proxmoxer.svg
+    :target: https://pypi.python.org/pypi/proxmoxer
+
+
