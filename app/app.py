@@ -2178,5 +2178,272 @@ def delete_template(host_id, node):
     
     return redirect(url_for('template_management', host_id=host_id, node=node))
 
+@app.route('/host/<host_id>/cluster')
+def cluster_management(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get cluster configuration
+        try:
+            cluster_status = connection.cluster.status.get()
+        except Exception:
+            cluster_status = []
+        
+        # Get HA resources and groups
+        try:
+            ha_resources = connection.cluster.ha.resources.get()
+        except Exception:
+            ha_resources = []
+            
+        try:
+            ha_groups = connection.cluster.ha.groups.get()
+        except Exception:
+            ha_groups = []
+        
+        # Get nodes
+        nodes = connection.nodes.get()
+        
+        return render_template('cluster_management.html',
+                            host_id=host_id,
+                            cluster_status=cluster_status,
+                            ha_resources=ha_resources,
+                            ha_groups=ha_groups,
+                            nodes=nodes)
+    except Exception as e:
+        flash(f"Failed to get cluster information: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
+
+@app.route('/host/<host_id>/cluster/ha/group/create', methods=['POST'])
+def create_ha_group(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        group_id = request.form.get('group_id')
+        nodes = request.form.get('nodes')
+        restricted = request.form.get('restricted') == 'on'
+        nofailback = request.form.get('nofailback') == 'on'
+        
+        # Create HA group
+        params = {
+            'group': group_id,
+            'nodes': nodes
+        }
+        
+        if restricted:
+            params['restricted'] = 1
+            
+        if nofailback:
+            params['nofailback'] = 1
+            
+        connection.cluster.ha.groups.post(**params)
+        
+        flash(f"HA Group '{group_id}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create HA Group: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_management', host_id=host_id))
+
+@app.route('/host/<host_id>/cluster/ha/group/<group>/delete', methods=['POST'])
+def delete_ha_group(host_id, group):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete HA group
+        connection.cluster.ha.groups(group).delete()
+        
+        flash(f"HA Group '{group}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete HA Group: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_management', host_id=host_id))
+
+@app.route('/host/<host_id>/cluster/ha/resource/create', methods=['POST'])
+def create_ha_resource(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        sid = request.form.get('sid')
+        resource_type = request.form.get('type')
+        group = request.form.get('group')
+        max_restart = request.form.get('max_restart', '1')
+        max_relocate = request.form.get('max_relocate', '1')
+        state = request.form.get('state', 'started')
+        
+        # Create HA resource
+        params = {
+            'sid': sid,
+            'type': resource_type,
+            'group': group,
+            'max_restart': max_restart,
+            'max_relocate': max_relocate,
+            'state': state
+        }
+        
+        connection.cluster.ha.resources.post(**params)
+        
+        flash(f"HA Resource '{sid}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create HA Resource: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_management', host_id=host_id))
+
+@app.route('/host/<host_id>/cluster/ha/resource/<sid>/delete', methods=['POST'])
+def delete_ha_resource(host_id, sid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete HA resource
+        connection.cluster.ha.resources(sid).delete()
+        
+        flash(f"HA Resource '{sid}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete HA Resource: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_management', host_id=host_id))
+
+@app.route('/host/<host_id>/cluster/ha/resource/<sid>/update', methods=['POST'])
+def update_ha_resource(host_id, sid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        group = request.form.get('group')
+        max_restart = request.form.get('max_restart')
+        max_relocate = request.form.get('max_relocate')
+        state = request.form.get('state')
+        
+        # Update parameters
+        params = {}
+        
+        if group:
+            params['group'] = group
+        if max_restart:
+            params['max_restart'] = max_restart
+        if max_relocate:
+            params['max_relocate'] = max_relocate
+        if state:
+            params['state'] = state
+            
+        # Update HA resource
+        connection.cluster.ha.resources(sid).put(**params)
+        
+        flash(f"HA Resource '{sid}' updated successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update HA Resource: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_management', host_id=host_id))
+
+@app.route('/host/<host_id>/migrate/vm')
+def migrate_vm_form(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get all nodes for this host
+        nodes = connection.nodes.get()
+        node_dict = {node['node']: node for node in nodes}
+        
+        # Get all VMs across all nodes
+        vms = []
+        for node in nodes:
+            node_name = node['node']
+            try:
+                node_vms = connection.nodes(node_name).qemu.get()
+                for vm in node_vms:
+                    vm['node'] = node_name
+                vms.extend(node_vms)
+            except Exception as e:
+                print(f"Error getting VMs from node {node_name}: {str(e)}")
+            
+        # Get all containers across all nodes
+        containers = []
+        for node in nodes:
+            node_name = node['node']
+            try:
+                node_containers = connection.nodes(node_name).lxc.get()
+                for ct in node_containers:
+                    ct['node'] = node_name
+                containers.extend(node_containers)
+            except Exception as e:
+                print(f"Error getting containers from node {node_name}: {str(e)}")
+        
+        return render_template('migrate_vm.html',
+                            host_id=host_id,
+                            nodes=node_dict,
+                            vms=vms,
+                            containers=containers)
+    except Exception as e:
+        flash(f"Failed to get migration information: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
+
+@app.route('/host/<host_id>/migrate/vm', methods=['POST'])
+def migrate_vm(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        vm_type = request.form.get('vm_type')
+        vmid = request.form.get('vmid')
+        source_node = request.form.get('source_node')
+        target_node = request.form.get('target_node')
+        online = request.form.get('online') == 'on'
+        with_local_disks = request.form.get('with_local_disks') == 'on'
+        
+        # Create migration parameters
+        params = {
+            'target': target_node
+        }
+        
+        if online:
+            params['online'] = 1
+            
+        if with_local_disks:
+            params['with-local-disks'] = 1
+        
+        # Start migration
+        if vm_type == 'qemu':
+            connection.nodes(source_node).qemu(vmid).migrate.post(**params)
+        elif vm_type == 'lxc':
+            connection.nodes(source_node).lxc(vmid).migrate.post(**params)
+        
+        flash(f"Started migration of {vm_type.upper()} {vmid} to node {target_node}", 'success')
+    except Exception as e:
+        flash(f"Failed to start migration: {str(e)}", 'danger')
+    
+    return redirect(url_for('migrate_vm_form', host_id=host_id))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

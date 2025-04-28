@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Cluster Management{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item active">Cluster Management</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-server"></i> Cluster Management</h1>
+    </div>
+</div>
+
+<!-- Cluster Status -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Cluster Status</h5>
+    </div>
+    <div class="card-body">
+        {% if cluster_status %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Nodes</th>
+                            <th>Quorate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cluster in cluster_status %}
+                        <tr>
+                            <td>{{ cluster.name }}</td>
+                            <td>{{ cluster.id }}</td>
+                            <td>
+                                {% if cluster.type == 'cluster' %}
+                                    <span class="badge bg-success">Cluster</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ cluster.type }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ cluster.nodes|default(0) }}</td>
+                            <td>
+                                {% if cluster.quorate|default(0) == 1 %}
+                                    <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                    <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No cluster configuration detected. This appears to be a standalone node or the API does not support retrieving cluster status.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- HA Configuration Section -->
+<div class="row">
+    <div class="col-md-6">
+        <!-- HA Groups -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">HA Groups</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addHAGroupModal">
+                    <i class="fas fa-plus"></i> Add HA Group
+                </button>
+            </div>
+            <div class="card-body">
+                {% if ha_groups %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Group</th>
+                                    <th>Nodes</th>
+                                    <th>Restricted</th>
+                                    <th>No Failback</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in ha_groups %}
+                                <tr>
+                                    <td>{{ group.group }}</td>
+                                    <td>{{ group.nodes }}</td>
+                                    <td>
+                                        {% if group.restricted|default(0) == 1 %}
+                                            <span class="badge bg-info">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if group.nofailback|default(0) == 1 %}
+                                            <span class="badge bg-info">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form action="{{ url_for('delete_ha_group', host_id=host_id, group=group.group) }}" method="post" class="d-inline">
+                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this HA group?');">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        No HA Groups configured. HA Groups define sets of cluster nodes on which HA resources can run.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <!-- HA Resources -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">HA Resources</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addHAResourceModal">
+                    <i class="fas fa-plus"></i> Add HA Resource
+                </button>
+            </div>
+            <div class="card-body">
+                {% if ha_resources %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Resource ID</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Group</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for resource in ha_resources %}
+                                <tr>
+                                    <td>{{ resource.sid }}</td>
+                                    <td>
+                                        {% if resource.type == 'vm' %}
+                                            <span class="badge bg-primary">VM</span>
+                                        {% elif resource.type == 'ct' %}
+                                            <span class="badge bg-success">Container</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ resource.type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if resource.status == 'started' %}
+                                            <span class="badge bg-success">Started</span>
+                                        {% elif resource.status == 'stopped' %}
+                                            <span class="badge bg-danger">Stopped</span>
+                                        {% elif resource.status == 'error' %}
+                                            <span class="badge bg-danger">Error</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ resource.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ resource.group }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#editHAResourceModal" 
+                                                    data-sid="{{ resource.sid }}" data-group="{{ resource.group }}"
+                                                    data-max-restart="{{ resource.max_restart|default(1) }}" 
+                                                    data-max-relocate="{{ resource.max_relocate|default(1) }}"
+                                                    data-state="{{ resource.state|default('started') }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <form action="{{ url_for('delete_ha_resource', host_id=host_id, sid=resource.sid) }}" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this HA resource?');">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        No HA Resources configured. HA Resources define which VMs and Containers should be highly available.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Migration Tools</h5>
+            </div>
+            <div class="card-body">
+                <p>Use the migration tool to move VMs and containers between nodes.</p>
+                <a href="{{ url_for('migrate_vm_form', host_id=host_id) }}" class="btn btn-primary">
+                    <i class="fas fa-exchange-alt"></i> Migrate VM/Container
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add HA Group Modal -->
+<div class="modal fade" id="addHAGroupModal" tabindex="-1" aria-labelledby="addHAGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addHAGroupModalLabel">Add HA Group</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addHAGroupForm" action="{{ url_for('create_ha_group', host_id=host_id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="group_id" class="form-label">Group ID</label>
+                        <input type="text" class="form-control" id="group_id" name="group_id" required>
+                        <div class="form-text">Unique identifier for this HA group</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nodes" class="form-label">Nodes</label>
+                        <input type="text" class="form-control" id="nodes" name="nodes" required>
+                        <div class="form-text">Comma-separated list of cluster nodes (e.g., node1,node2)</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="restricted" name="restricted">
+                        <label class="form-check-label" for="restricted">Restricted</label>
+                        <div class="form-text">Resources bound to this group may only run on nodes defined in this group</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="nofailback" name="nofailback">
+                        <label class="form-check-label" for="nofailback">No Failback</label>
+                        <div class="form-text">Resources will not automatically failback to their original node when it comes back online</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addHAGroupForm" class="btn btn-primary">Create HA Group</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add HA Resource Modal -->
+<div class="modal fade" id="addHAResourceModal" tabindex="-1" aria-labelledby="addHAResourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addHAResourceModalLabel">Add HA Resource</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addHAResourceForm" action="{{ url_for('create_ha_resource', host_id=host_id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="sid" class="form-label">Resource ID</label>
+                        <input type="text" class="form-control" id="sid" name="sid" required>
+                        <div class="form-text">ID of the resource to make highly available (e.g., vm:100 for VM ID 100)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Resource Type</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="vm">Virtual Machine</option>
+                            <option value="ct">Container</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="group" class="form-label">HA Group</label>
+                        <select class="form-select" id="group" name="group" required>
+                            <option value="">Select HA Group</option>
+                            {% for group in ha_groups %}
+                                <option value="{{ group.group }}">{{ group.group }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="max_restart" class="form-label">Max Restart</label>
+                        <input type="number" class="form-control" id="max_restart" name="max_restart" value="1" min="0" max="10">
+                        <div class="form-text">Maximum number of restart attempts</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="max_relocate" class="form-label">Max Relocate</label>
+                        <input type="number" class="form-control" id="max_relocate" name="max_relocate" value="1" min="0" max="10">
+                        <div class="form-text">Maximum number of relocate attempts</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="state" class="form-label">State</label>
+                        <select class="form-select" id="state" name="state" required>
+                            <option value="started">Started</option>
+                            <option value="stopped">Stopped</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                        <div class="form-text">Requested resource state</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addHAResourceForm" class="btn btn-primary">Create HA Resource</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit HA Resource Modal -->
+<div class="modal fade" id="editHAResourceModal" tabindex="-1" aria-labelledby="editHAResourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editHAResourceModalLabel">Edit HA Resource</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editHAResourceForm" method="post">
+                    <div class="mb-3">
+                        <label for="edit_group" class="form-label">HA Group</label>
+                        <select class="form-select" id="edit_group" name="group">
+                            <option value="">Select HA Group</option>
+                            {% for group in ha_groups %}
+                                <option value="{{ group.group }}">{{ group.group }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_max_restart" class="form-label">Max Restart</label>
+                        <input type="number" class="form-control" id="edit_max_restart" name="max_restart" min="0" max="10">
+                        <div class="form-text">Maximum number of restart attempts</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_max_relocate" class="form-label">Max Relocate</label>
+                        <input type="number" class="form-control" id="edit_max_relocate" name="max_relocate" min="0" max="10">
+                        <div class="form-text">Maximum number of relocate attempts</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_state" class="form-label">State</label>
+                        <select class="form-select" id="edit_state" name="state">
+                            <option value="started">Started</option>
+                            <option value="stopped">Stopped</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                        <div class="form-text">Requested resource state</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="editHAResourceForm" class="btn btn-primary">Update HA Resource</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Setup edit HA resource modal
+        $('#editHAResourceModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var sid = button.data('sid');
+            var group = button.data('group');
+            var maxRestart = button.data('max-restart');
+            var maxRelocate = button.data('max-relocate');
+            var state = button.data('state');
+            
+            var modal = $(this);
+            modal.find('form').attr('action', '{{ url_for("update_ha_resource", host_id=host_id, sid="") }}' + sid);
+            modal.find('#edit_group').val(group);
+            modal.find('#edit_max_restart').val(maxRestart);
+            modal.find('#edit_max_relocate').val(maxRelocate);
+            modal.find('#edit_state').val(state);
+        });
+    });
+</script>
+{% endblock %}

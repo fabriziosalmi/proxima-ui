@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - VM/Container Migration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('cluster_management', host_id=host_id) }}">Cluster Management</a></li>
+        <li class="breadcrumb-item active">VM/Container Migration</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-exchange-alt"></i> VM/Container Migration</h1>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Migrate VM or Container</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Migration moves a VM or container from one node to another. Online migration keeps the VM/container running during the transfer.
+        </div>
+        
+        <form action="{{ url_for('migrate_vm', host_id=host_id) }}" method="post">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Resource Type</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="vm_type" id="vm_type_qemu" value="qemu" checked>
+                        <label class="form-check-label" for="vm_type_qemu">
+                            Virtual Machine (QEMU/KVM)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="vm_type" id="vm_type_lxc" value="lxc">
+                        <label class="form-check-label" for="vm_type_lxc">
+                            Container (LXC)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="vmSelection" class="form-label">Select VM/Container</label>
+                    <select class="form-select" id="vmSelection" required>
+                        <option value="">Select a resource</option>
+                        <optgroup label="Virtual Machines">
+                            {% for vm in vms %}
+                                <option value="{{ vm.vmid }}" data-type="qemu" data-node="{{ vm.node }}" {% if vm.status != 'stopped' %}data-online="true"{% endif %}>
+                                    {% if vm.name %}{{ vm.name }}{% else %}VM {{ vm.vmid }}{% endif %} 
+                                    (ID: {{ vm.vmid }}, Node: {{ vm.node }}, Status: {{ vm.status }})
+                                </option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Containers">
+                            {% for ct in containers %}
+                                <option value="{{ ct.vmid }}" data-type="lxc" data-node="{{ ct.node }}" {% if ct.status != 'stopped' %}data-online="true"{% endif %}>
+                                    {% if ct.name %}{{ ct.name }}{% else %}CT {{ ct.vmid }}{% endif %} 
+                                    (ID: {{ ct.vmid }}, Node: {{ ct.node }}, Status: {{ ct.status }})
+                                </option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                    <input type="hidden" id="vmid" name="vmid">
+                    <input type="hidden" id="source_node" name="source_node">
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="target_node" class="form-label">Target Node</label>
+                    <select class="form-select" id="target_node" name="target_node" required>
+                        <option value="">Select target node</option>
+                        {% for node_id, node in nodes.items() %}
+                            <option value="{{ node_id }}">{{ node_id }} ({{ node.status }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="online" name="online">
+                        <label class="form-check-label" for="online">Online Migration</label>
+                        <div class="form-text">If checked, the VM/Container will be live-migrated without downtime. This requires a running VM/Container.</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="with_local_disks" name="with_local_disks">
+                        <label class="form-check-label" for="with_local_disks">With Local Disks</label>
+                        <div class="form-text">If checked, local disks will be migrated as well (slower but maintains VM integrity).</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                <a href="{{ url_for('cluster_management', host_id=host_id) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                <button type="submit" class="btn btn-primary" id="migrateBtn">Start Migration</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Migration Notes</h5>
+    </div>
+    <div class="card-body">
+        <ul>
+            <li>Migration requires sufficient resources available on the target node</li>
+            <li>Online migration is only available for running VMs/Containers</li>
+            <li>Shared storage allows faster migrations as disk content doesn't need to be transferred</li>
+            <li>VMs with passthrough devices cannot be migrated live</li>
+            <li>Migration may take a significant amount of time based on VM/Container size and network conditions</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Handle VM type selection
+        $('input[name="vm_type"]').change(function() {
+            const selectedType = $(this).val();
+            
+            // Filter dropdown based on selected type
+            $('#vmSelection option').each(function() {
+                if ($(this).val() === '' || $(this).parent('optgroup').length === 0) return;
+                
+                const optionType = $(this).data('type');
+                if (optionType === selectedType) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+            
+            // Reset selection
+            $('#vmSelection').val('');
+        });
+        
+        // Initialize with default selection (qemu)
+        $('input[name="vm_type"]:checked').change();
+        
+        // Handle VM selection
+        $('#vmSelection').change(function() {
+            const selectedOption = $(this).find('option:selected');
+            
+            if (selectedOption.val()) {
+                // Update hidden fields
+                $('#vmid').val(selectedOption.val());
+                $('#source_node').val(selectedOption.data('node'));
+                
+                // Filter target nodes to exclude source node
+                const sourceNode = selectedOption.data('node');
+                $('#target_node option').each(function() {
+                    if ($(this).val() === sourceNode) {
+                        $(this).hide();
+                    } else {
+                        $(this).show();
+                    }
+                });
+                
+                // Set the VM type radio based on selection
+                const vmType = selectedOption.data('type');
+                $(`#vm_type_${vmType}`).prop('checked', true);
+                
+                // Handle online migration availability
+                if (selectedOption.data('online')) {
+                    $('#online').prop('disabled', false);
+                } else {
+                    // If VM is stopped, disable online migration
+                    $('#online').prop('checked', false);
+                    $('#online').prop('disabled', true);
+                }
+            } else {
+                // Reset form elements
+                $('#vmid').val('');
+                $('#source_node').val('');
+                $('#target_node option').show();
+                $('#online').prop('disabled', false);
+            }
+        });
+        
+        // Form validation
+        $('form').submit(function(event) {
+            const targetNode = $('#target_node').val();
+            const sourceNode = $('#source_node').val();
+            const vmid = $('#vmid').val();
+            
+            if (!vmid || !sourceNode || !targetNode) {
+                alert('Please complete all required fields');
+                event.preventDefault();
+                return false;
+            }
+            
+            if (targetNode === sourceNode) {
+                alert('Source and target nodes cannot be the same');
+                event.preventDefault();
+                return false;
+            }
+            
+            if ($('#online').prop('checked') && $('#online').prop('disabled')) {
+                alert('Online migration is not available for stopped VMs/Containers');
+                event.preventDefault();
+                return false;
+            }
+            
+            // Confirm migration
+            return confirm('Are you sure you want to migrate this VM/Container? This process may take some time.');
+        });
+    });
+</script>
+{% endblock %}
