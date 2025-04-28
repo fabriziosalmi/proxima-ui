@@ -29,6 +29,9 @@
             <a href="{{ url_for('node_network', host_id=host_id, node=node) }}" class="btn btn-info">
                 <i class="fas fa-network-wired"></i> Network
             </a>
+            <a href="{{ url_for('node_firewall', host_id=host_id, node=node) }}" class="btn btn-danger">
+                <i class="fas fa-shield-alt"></i> Firewall
+            </a>
         </div>
     </div>
 </div>

@@ -1417,6 +1417,631 @@ def add_permission(host_id):
     
     return redirect(url_for('user_management', host_id=host_id))
 
+@app.route('/host/<host_id>/firewall')
+def cluster_firewall(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get cluster firewall configuration
+        firewall_config = connection.cluster.firewall.options.get()
+        security_groups = connection.cluster.firewall.groups.get()
+        
+        # Get IPSets
+        ipsets = connection.cluster.firewall.ipset.get()
+        
+        # Get cluster-wide firewall rules
+        rules = connection.cluster.firewall.rules.get()
+        
+        return render_template('cluster_firewall.html',
+                            host_id=host_id,
+                            firewall_config=firewall_config,
+                            security_groups=security_groups,
+                            ipsets=ipsets,
+                            rules=rules)
+    except Exception as e:
+        flash(f"Failed to get firewall configuration: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
+
+@app.route('/host/<host_id>/firewall/toggle', methods=['POST'])
+def toggle_cluster_firewall(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        enabled = request.form.get('enabled') == 'true'
+        
+        # Update firewall status
+        connection.cluster.firewall.options.put(enable=1 if enabled else 0)
+        
+        status = "enabled" if enabled else "disabled"
+        flash(f"Firewall {status} successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update firewall: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_firewall', host_id=host_id))
+
+@app.route('/host/<host_id>/firewall/rule/add', methods=['POST'])
+def add_cluster_firewall_rule(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        params = {
+            'action': request.form.get('action'),
+            'type': request.form.get('type'),
+            'enable': 1 if request.form.get('enable') == 'on' else 0,
+            'comment': request.form.get('comment', '')
+        }
+        
+        # Add source/destination based on rule type
+        if request.form.get('source'):
+            params['source'] = request.form.get('source')
+        
+        if request.form.get('dest'):
+            params['dest'] = request.form.get('dest')
+        
+        # Add protocol specific parameters if not 'all'
+        proto = request.form.get('proto')
+        if proto and proto != 'all':
+            params['proto'] = proto
+            
+            if proto in ['tcp', 'udp'] and request.form.get('dport'):
+                params['dport'] = request.form.get('dport')
+                
+            if proto in ['tcp', 'udp'] and request.form.get('sport'):
+                params['sport'] = request.form.get('sport')
+                
+        # Add ICMP type if applicable
+        if proto == 'icmp' and request.form.get('icmptype'):
+            params['icmptype'] = request.form.get('icmptype')
+        
+        # Add rule to the cluster firewall
+        connection.cluster.firewall.rules.post(**params)
+        
+        flash("Firewall rule added successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to add firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_firewall', host_id=host_id))
+
+@app.route('/host/<host_id>/firewall/rule/<rule_pos>/delete', methods=['POST'])
+def delete_cluster_firewall_rule(host_id, rule_pos):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the rule
+        connection.cluster.firewall.rules.delete(pos=rule_pos)
+        
+        flash("Firewall rule deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_firewall', host_id=host_id))
+
+@app.route('/host/<host_id>/firewall/ipset', methods=['POST'])
+def create_ipset(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        name = request.form.get('name')
+        comment = request.form.get('comment', '')
+        
+        # Create IP set
+        connection.cluster.firewall.ipset.post(name=name, comment=comment)
+        
+        flash(f"IP set '{name}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create IP set: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_firewall', host_id=host_id))
+
+@app.route('/host/<host_id>/firewall/ipset/<name>/delete', methods=['POST'])
+def delete_ipset(host_id, name):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete IP set
+        connection.cluster.firewall.ipset(name).delete()
+        
+        flash(f"IP set '{name}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete IP set: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_firewall', host_id=host_id))
+
+@app.route('/host/<host_id>/firewall/ipset/<name>/add', methods=['POST'])
+def add_ipset_entry(host_id, name):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        cidr = request.form.get('cidr')
+        comment = request.form.get('comment', '')
+        
+        # Add entry to IP set
+        connection.cluster.firewall.ipset(name).post(cidr=cidr, comment=comment)
+        
+        flash(f"Entry added to IP set '{name}' successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to add entry to IP set: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_firewall', host_id=host_id))
+
+@app.route('/host/<host_id>/firewall/security-group', methods=['POST'])
+def create_security_group(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        group_name = request.form.get('name')
+        comment = request.form.get('comment', '')
+        
+        # Create security group
+        connection.cluster.firewall.groups.post(group=group_name, comment=comment)
+        
+        flash(f"Security group '{group_name}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create security group: {str(e)}", 'danger')
+    
+    return redirect(url_for('cluster_firewall', host_id=host_id))
+
+@app.route('/node/<host_id>/<node>/firewall')
+def node_firewall(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get node firewall configuration
+        firewall_config = connection.nodes(node).firewall.options.get()
+        
+        # Get node-specific firewall rules
+        rules = connection.nodes(node).firewall.rules.get()
+        
+        return render_template('node_firewall.html',
+                            host_id=host_id,
+                            node=node,
+                            firewall_config=firewall_config,
+                            rules=rules)
+    except Exception as e:
+        flash(f"Failed to get node firewall configuration: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/firewall/toggle', methods=['POST'])
+def toggle_node_firewall(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        enabled = request.form.get('enabled') == 'true'
+        
+        # Update firewall status
+        connection.nodes(node).firewall.options.put(enable=1 if enabled else 0)
+        
+        status = "enabled" if enabled else "disabled"
+        flash(f"Node firewall {status} successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update node firewall: {str(e)}", 'danger')
+    
+    return redirect(url_for('node_firewall', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/firewall/rule/add', methods=['POST'])
+def add_node_firewall_rule(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        params = {
+            'action': request.form.get('action'),
+            'type': request.form.get('type'),
+            'enable': 1 if request.form.get('enable') == 'on' else 0,
+            'comment': request.form.get('comment', '')
+        }
+        
+        # Add source/destination based on rule type
+        if request.form.get('source'):
+            params['source'] = request.form.get('source')
+        
+        if request.form.get('dest'):
+            params['dest'] = request.form.get('dest')
+        
+        # Add protocol specific parameters if not 'all'
+        proto = request.form.get('proto')
+        if proto and proto != 'all':
+            params['proto'] = proto
+            
+            if proto in ['tcp', 'udp'] and request.form.get('dport'):
+                params['dport'] = request.form.get('dport')
+                
+            if proto in ['tcp', 'udp'] and request.form.get('sport'):
+                params['sport'] = request.form.get('sport')
+                
+        # Add ICMP type if applicable
+        if proto == 'icmp' and request.form.get('icmptype'):
+            params['icmptype'] = request.form.get('icmptype')
+        
+        # Add rule to the node firewall
+        connection.nodes(node).firewall.rules.post(**params)
+        
+        flash("Node firewall rule added successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to add node firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('node_firewall', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/firewall/rule/<rule_pos>/delete', methods=['POST'])
+def delete_node_firewall_rule(host_id, node, rule_pos):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the rule
+        connection.nodes(node).firewall.rules.delete(pos=rule_pos)
+        
+        flash("Node firewall rule deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete node firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('node_firewall', host_id=host_id, node=node))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/firewall')
+def vm_firewall(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get VM information for the header
+        vm_info = connection.nodes(node).qemu(vmid).status.current.get()
+        
+        # Get VM firewall configuration
+        firewall_config = connection.nodes(node).qemu(vmid).firewall.options.get()
+        
+        # Get VM-specific firewall rules
+        rules = connection.nodes(node).qemu(vmid).firewall.rules.get()
+        
+        # Get available security groups
+        security_groups = connection.cluster.firewall.groups.get()
+        
+        # Get current assigned security groups
+        refs = connection.nodes(node).qemu(vmid).firewall.refs.get()
+        
+        return render_template('vm_firewall.html',
+                            host_id=host_id,
+                            node=node,
+                            vmid=vmid,
+                            vm_name=vm_info.get('name', f'VM {vmid}'),
+                            firewall_config=firewall_config,
+                            rules=rules,
+                            security_groups=security_groups,
+                            refs=refs)
+    except Exception as e:
+        flash(f"Failed to get VM firewall configuration: {str(e)}", 'danger')
+        return redirect(url_for('vm_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/firewall/toggle', methods=['POST'])
+def toggle_vm_firewall(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        enabled = request.form.get('enabled') == 'true'
+        
+        # Update firewall status
+        connection.nodes(node).qemu(vmid).firewall.options.put(enable=1 if enabled else 0)
+        
+        status = "enabled" if enabled else "disabled"
+        flash(f"VM firewall {status} successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update VM firewall: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/firewall/rule/add', methods=['POST'])
+def add_vm_firewall_rule(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        params = {
+            'action': request.form.get('action'),
+            'type': request.form.get('type'),
+            'enable': 1 if request.form.get('enable') == 'on' else 0,
+            'comment': request.form.get('comment', '')
+        }
+        
+        # Add source/destination based on rule type
+        if request.form.get('source'):
+            params['source'] = request.form.get('source')
+        
+        if request.form.get('dest'):
+            params['dest'] = request.form.get('dest')
+        
+        # Add protocol specific parameters if not 'all'
+        proto = request.form.get('proto')
+        if proto and proto != 'all':
+            params['proto'] = proto
+            
+            if proto in ['tcp', 'udp'] and request.form.get('dport'):
+                params['dport'] = request.form.get('dport')
+                
+            if proto in ['tcp', 'udp'] and request.form.get('sport'):
+                params['sport'] = request.form.get('sport')
+                
+        # Add ICMP type if applicable
+        if proto == 'icmp' and request.form.get('icmptype'):
+            params['icmptype'] = request.form.get('icmptype')
+        
+        # Add rule to the VM firewall
+        connection.nodes(node).qemu(vmid).firewall.rules.post(**params)
+        
+        flash("VM firewall rule added successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to add VM firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/firewall/rule/<rule_pos>/delete', methods=['POST'])
+def delete_vm_firewall_rule(host_id, node, vmid, rule_pos):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the rule
+        connection.nodes(node).qemu(vmid).firewall.rules.delete(pos=rule_pos)
+        
+        flash("VM firewall rule deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete VM firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/firewall/refs/add', methods=['POST'])
+def add_vm_security_group(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        group = request.form.get('group')
+        
+        # Add security group reference
+        connection.nodes(node).qemu(vmid).firewall.refs.post(group=group)
+        
+        flash(f"Security group '{group}' assigned to VM successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to assign security group: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/firewall/refs/<group>/delete', methods=['POST'])
+def delete_vm_security_group(host_id, node, vmid, group):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete security group reference
+        connection.nodes(node).qemu(vmid).firewall.refs(group).delete()
+        
+        flash(f"Security group '{group}' removed from VM successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to remove security group: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/firewall')
+def container_firewall(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get container information for the header
+        container_info = connection.nodes(node).lxc(vmid).status.current.get()
+        
+        # Get container firewall configuration
+        firewall_config = connection.nodes(node).lxc(vmid).firewall.options.get()
+        
+        # Get container-specific firewall rules
+        rules = connection.nodes(node).lxc(vmid).firewall.rules.get()
+        
+        # Get available security groups
+        security_groups = connection.cluster.firewall.groups.get()
+        
+        # Get current assigned security groups
+        refs = connection.nodes(node).lxc(vmid).firewall.refs.get()
+        
+        return render_template('container_firewall.html',
+                            host_id=host_id,
+                            node=node,
+                            vmid=vmid,
+                            container_name=container_info.get('name', f'Container {vmid}'),
+                            firewall_config=firewall_config,
+                            rules=rules,
+                            security_groups=security_groups,
+                            refs=refs)
+    except Exception as e:
+        flash(f"Failed to get container firewall configuration: {str(e)}", 'danger')
+        return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/firewall/toggle', methods=['POST'])
+def toggle_container_firewall(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        enabled = request.form.get('enabled') == 'true'
+        
+        # Update firewall status
+        connection.nodes(node).lxc(vmid).firewall.options.put(enable=1 if enabled else 0)
+        
+        status = "enabled" if enabled else "disabled"
+        flash(f"Container firewall {status} successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update container firewall: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/firewall/rule/add', methods=['POST'])
+def add_container_firewall_rule(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        params = {
+            'action': request.form.get('action'),
+            'type': request.form.get('type'),
+            'enable': 1 if request.form.get('enable') == 'on' else 0,
+            'comment': request.form.get('comment', '')
+        }
+        
+        # Add source/destination based on rule type
+        if request.form.get('source'):
+            params['source'] = request.form.get('source')
+        
+        if request.form.get('dest'):
+            params['dest'] = request.form.get('dest')
+        
+        # Add protocol specific parameters if not 'all'
+        proto = request.form.get('proto')
+        if proto and proto != 'all':
+            params['proto'] = proto
+            
+            if proto in ['tcp', 'udp'] and request.form.get('dport'):
+                params['dport'] = request.form.get('dport')
+                
+            if proto in ['tcp', 'udp'] and request.form.get('sport'):
+                params['sport'] = request.form.get('sport')
+                
+        # Add ICMP type if applicable
+        if proto == 'icmp' and request.form.get('icmptype'):
+            params['icmptype'] = request.form.get('icmptype')
+        
+        # Add rule to the container firewall
+        connection.nodes(node).lxc(vmid).firewall.rules.post(**params)
+        
+        flash("Container firewall rule added successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to add container firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/firewall/rule/<rule_pos>/delete', methods=['POST'])
+def delete_container_firewall_rule(host_id, node, vmid, rule_pos):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the rule
+        connection.nodes(node).lxc(vmid).firewall.rules.delete(pos=rule_pos)
+        
+        flash("Container firewall rule deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete container firewall rule: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/firewall/refs/add', methods=['POST'])
+def add_container_security_group(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        group = request.form.get('group')
+        
+        # Add security group reference
+        connection.nodes(node).lxc(vmid).firewall.refs.post(group=group)
+        
+        flash(f"Security group '{group}' assigned to container successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to assign security group: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_firewall', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/firewall/refs/<group>/delete', methods=['POST'])
+def delete_container_security_group(host_id, node, vmid, group):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete security group reference
+        connection.nodes(node).lxc(vmid).firewall.refs(group).delete()
+        
+        flash(f"Security group '{group}' removed from container successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to remove security group: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_firewall', host_id=host_id, node=node, vmid=vmid))
+
 @app.route('/host/<host_id>/<node>/templates')
 def template_management(host_id, node):
     if host_id not in proxmox_connections:
