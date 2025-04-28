@@ -26,18 +26,24 @@
     <div class="card-body">
         <form action="{{ url_for('create_vm_snapshot', host_id=host_id, node=node, vmid=vmid) }}" method="post">
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-5">
                     <div class="mb-3">
                         <label for="name" class="form-label">Snapshot Name</label>
                         <input type="text" class="form-control" id="name" name="name" required 
                             placeholder="e.g., backup-20250427">
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-5">
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
                         <input type="text" class="form-control" id="description" name="description" 
                             placeholder="e.g., Before software update">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3 form-check mt-4">
+                        <input type="checkbox" class="form-check-input" id="include_ram" name="include_ram">
+                        <label class="form-check-label" for="include_ram">Include RAM</label>
                     </div>
                 </div>
             </div>

@@ -12,7 +12,17 @@
 
 <div class="row mb-4">
     <div class="col">
-        <h1><i class="fas fa-server"></i> {{ host_info.host }}</h1>
+        <h1><i class="fas fa-server"></i> Host: {{ host_id }}</h1>
+    </div>
+    <div class="col-auto">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('storage_list', host_id=host_id) }}" class="btn btn-info">
+                <i class="fas fa-hdd"></i> Storage Management
+            </a>
+            <a href="{{ url_for('backup_list', host_id=host_id) }}" class="btn btn-success">
+                <i class="fas fa-archive"></i> Backup & Restore
+            </a>
+        </div>
     </div>
 </div>
 

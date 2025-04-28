@@ -18,6 +18,9 @@
     </div>
     <div class="col-auto">
         <div class="btn-group" role="group">
+            <a href="{{ url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-info">
+                <i class="fas fa-camera"></i> Snapshots
+            </a>
             {% if vm_info.status == 'running' %}
                 <button type="button" class="btn btn-warning vm-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
                     <i class="fas fa-power-off"></i> Shutdown

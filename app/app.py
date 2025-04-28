@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from proxmoxer import ProxmoxAPI
 import pickle
 import threading
+import datetime
 
 # Load environment variables
 load_dotenv()
@@ -201,6 +202,106 @@ def container_details(host_id, node, vmid):
         flash(f"Failed to get container details: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
 
+@app.route('/vm/<host_id>/<node>/<vmid>/snapshots')
+def vm_snapshots(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get VM info for name
+        vm_info = connection.nodes(node).qemu(vmid).status.current.get()
+        
+        # Get snapshots
+        snapshots = connection.nodes(node).qemu(vmid).snapshot.get()
+        
+        # Convert timestamps to human-readable format
+        for snapshot in snapshots:
+            if 'snaptime' in snapshot:
+                try:
+                    timestamp = int(snapshot['snaptime'])
+                    snapshot['snaptime'] = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                except (ValueError, TypeError):
+                    pass
+        
+        return render_template('vm_snapshots.html',
+                            host_id=host_id,
+                            node=node,
+                            vmid=vmid,
+                            vm_name=vm_info.get('name', f'VM {vmid}'),
+                            snapshots=snapshots)
+    except Exception as e:
+        flash(f"Failed to get VM snapshots: {str(e)}", 'danger')
+        return redirect(url_for('vm_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/snapshots/create', methods=['POST'])
+def create_vm_snapshot(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    include_ram = request.form.get('include_ram') == 'on'
+    
+    if not name:
+        flash("Snapshot name is required", 'danger')
+        return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Create snapshot
+        connection.nodes(node).qemu(vmid).snapshot.post(
+            snapname=name,
+            description=description,
+            vmstate=1 if include_ram else 0
+        )
+        
+        flash(f"Snapshot '{name}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create snapshot: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/snapshots/<snapname>/restore', methods=['POST'])
+def restore_vm_snapshot(host_id, node, vmid, snapname):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Restore snapshot
+        connection.nodes(node).qemu(vmid).snapshot(snapname).rollback.post()
+        
+        flash(f"Snapshot '{snapname}' restored successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to restore snapshot: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/snapshots/<snapname>/delete', methods=['POST'])
+def delete_vm_snapshot(host_id, node, vmid, snapname):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete snapshot
+        connection.nodes(node).qemu(vmid).snapshot(snapname).delete()
+        
+        flash(f"Snapshot '{snapname}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete snapshot: {str(e)}", 'danger')
+    
+    return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
+
 @app.route('/api/vm/action', methods=['POST'])
 def vm_action():
     host_id = request.form.get('host_id')
@@ -254,6 +355,350 @@ def container_action():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/host/<host_id>/storage')
+def storage_list(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get storage pools
+        storage_pools = connection.storage.get()
+        
+        # Get all nodes for this host
+        nodes = connection.nodes.get()
+        nodes_dict = {node['node']: node for node in nodes}
+        
+        # Enhance storage info with usage statistics from first available node
+        if nodes:
+            sample_node = nodes[0]['node']
+            
+            for storage in storage_pools:
+                try:
+                    # Get detailed storage info for the pool from the sample node
+                    storage_details = connection.nodes(sample_node).storage(storage['storage']).status.get()
+                    
+                    # Add usage info to the storage object
+                    storage['total'] = storage_details.get('total', 0)
+                    storage['used'] = storage_details.get('used', 0)
+                    storage['available'] = storage_details.get('avail', 0)
+                    
+                    # Calculate percentage used
+                    if storage['total'] > 0:
+                        storage['percent_used'] = (storage['used'] / storage['total']) * 100
+                    else:
+                        storage['percent_used'] = 0
+                        
+                except Exception:
+                    # If we can't get details, set defaults
+                    storage['total'] = 0
+                    storage['used'] = 0 
+                    storage['available'] = 0
+                    storage['percent_used'] = 0
+        
+        return render_template('storage_list.html',
+                            host_id=host_id,
+                            storage_pools=storage_pools,
+                            nodes=nodes_dict)
+    except Exception as e:
+        flash(f"Failed to get storage list: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
+
+@app.route('/host/<host_id>/storage/create', methods=['POST'])
+def create_storage(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    storage_id = request.form.get('storage_id')
+    storage_type = request.form.get('storage_type')
+    content = request.form.getlist('content')  # This will be a list of selected content types
+    
+    # Required parameters for all storage types
+    params = {
+        'storage': storage_id,
+        'type': storage_type,
+        'content': ','.join(content)  # Convert list to comma-separated string
+    }
+    
+    # Add type-specific parameters based on the selected storage type
+    if storage_type == 'dir':
+        params['path'] = request.form.get('dir_path')
+    elif storage_type == 'nfs':
+        params['server'] = request.form.get('nfs_server')
+        params['export'] = request.form.get('nfs_export')
+    elif storage_type == 'cifs':
+        params['server'] = request.form.get('cifs_server')
+        params['share'] = request.form.get('cifs_share')
+        username = request.form.get('cifs_username')
+        password = request.form.get('cifs_password')
+        if username:
+            params['username'] = username
+        if password:
+            params['password'] = password
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        connection.storage.post(**params)
+        flash(f"Storage '{storage_id}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create storage: {str(e)}", 'danger')
+    
+    return redirect(url_for('storage_list', host_id=host_id))
+
+@app.route('/host/<host_id>/storage/<storage_id>/delete', methods=['POST'])
+def delete_storage(host_id, storage_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        connection.storage(storage_id).delete()
+        flash(f"Storage '{storage_id}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete storage: {str(e)}", 'danger')
+    
+    return redirect(url_for('storage_list', host_id=host_id))
+
+@app.route('/host/<host_id>/backups')
+def backup_list(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get all nodes for this host
+        nodes = connection.nodes.get()
+        
+        # Collect backup info from all nodes
+        all_backups = []
+        storage_pools = connection.storage.get()
+        
+        # Create a mapping of storage IDs that support backups
+        backup_storages = {}
+        for storage in storage_pools:
+            if 'backup' in storage.get('content', '').split(','):
+                backup_storages[storage['storage']] = storage
+        
+        # Get all backup tasks across all nodes
+        for node in nodes:
+            node_name = node['node']
+            try:
+                # Get backup jobs from this node
+                tasks = connection.nodes(node_name).tasks.get(limit=500)
+                
+                # Filter for backup tasks
+                backup_tasks = [task for task in tasks if task.get('type') == 'vzdump']
+                
+                for task in backup_tasks:
+                    try:
+                        # Convert status information
+                        if task.get('status') == 'stopped' and task.get('exitstatus') == 'OK':
+                            task['status_display'] = 'Success'
+                            task['status_class'] = 'success'
+                        elif task.get('status') == 'running':
+                            task['status_display'] = 'Running'
+                            task['status_class'] = 'info'
+                        elif task.get('status') == 'stopped' and task.get('exitstatus') != 'OK':
+                            task['status_display'] = 'Failed'
+                            task['status_class'] = 'danger'
+                        else:
+                            task['status_display'] = task.get('status', 'Unknown')
+                            task['status_class'] = 'secondary'
+                        
+                        # Convert start time
+                        if 'starttime' in task:
+                            task['starttime_display'] = datetime.datetime.fromtimestamp(
+                                task['starttime']).strftime('%Y-%m-%d %H:%M:%S')
+                        
+                        # Add node information
+                        task['node'] = node_name
+                        
+                        all_backups.append(task)
+                    except Exception as e:
+                        print(f"Error processing task: {str(e)}")
+            except Exception as e:
+                print(f"Error getting tasks from node {node_name}: {str(e)}")
+        
+        # Sort backups by start time (newest first)
+        all_backups.sort(key=lambda x: x.get('starttime', 0), reverse=True)
+        
+        # Get all backup schedules
+        try:
+            backup_jobs = connection.cluster.backup.get()
+        except Exception:
+            # If cluster API is not available, try getting from individual nodes
+            backup_jobs = []
+            for node in nodes:
+                try:
+                    node_jobs = connection.nodes(node['node']).vzdump.extractConfig()
+                    for job in node_jobs:
+                        job['node'] = node['node']
+                    backup_jobs.extend(node_jobs)
+                except Exception:
+                    pass
+        
+        return render_template('backups.html',
+                            host_id=host_id,
+                            backup_tasks=all_backups,
+                            backup_jobs=backup_jobs,
+                            backup_storages=backup_storages,
+                            nodes=nodes)
+    except Exception as e:
+        flash(f"Failed to get backup list: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
+
+@app.route('/host/<host_id>/backups/create', methods=['POST'])
+def create_backup(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    node = request.form.get('node')
+    vm_type = request.form.get('vm_type')
+    vmid = request.form.get('vmid')
+    storage = request.form.get('storage')
+    mode = request.form.get('mode', 'snapshot')
+    compress = request.form.get('compress') == 'on'
+    
+    if not node or not storage:
+        flash("Missing required parameters", 'danger')
+        return redirect(url_for('backup_list', host_id=host_id))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Build parameters for backup job
+        params = {
+            'storage': storage,
+            'mode': mode,
+            'compress': compress,
+        }
+        
+        # Add VM/container selection parameter
+        if vmid and vm_type:
+            if vm_type == 'qemu':
+                params['vmid'] = vmid
+            elif vm_type == 'lxc':
+                params['vmid'] = vmid
+        
+        # Start backup job
+        result = connection.nodes(node).vzdump.post(**params)
+        
+        flash(f"Backup job started successfully. Task ID: {result.get('data')}", 'success')
+    except Exception as e:
+        flash(f"Failed to start backup: {str(e)}", 'danger')
+    
+    return redirect(url_for('backup_list', host_id=host_id))
+
+@app.route('/host/<host_id>/backups/schedule', methods=['POST'])
+def schedule_backup(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    schedule_id = request.form.get('schedule_id')
+    storage = request.form.get('storage')
+    schedule = request.form.get('schedule', '0 4 * * *')  # Default to 4 AM daily
+    mode = request.form.get('mode', 'snapshot')
+    compression = request.form.get('compression', 'zstd')  # Default compression
+    retention = request.form.get('retention', '3')  # Default 3 backups
+    all_vms = request.form.get('all') == 'on'
+    exclude = request.form.get('exclude', '')
+    vm_ids = request.form.getlist('vmids')
+    
+    if not storage:
+        flash("Storage is required", 'danger')
+        return redirect(url_for('backup_list', host_id=host_id))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Build parameters for backup schedule
+        params = {
+            'id': schedule_id,
+            'storage': storage,
+            'schedule': schedule,
+            'mode': mode,
+            'compress': compression,
+            'maxfiles': retention,
+            'enabled': 1
+        }
+        
+        # Add VM selection parameter
+        if all_vms:
+            params['all'] = 1
+            if exclude:
+                params['exclude'] = exclude
+        elif vm_ids:
+            params['vmid'] = ','.join(vm_ids)
+        
+        # Create backup schedule
+        connection.cluster.backup.post(**params)
+        
+        flash(f"Backup schedule '{schedule_id}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create backup schedule: {str(e)}", 'danger')
+    
+    return redirect(url_for('backup_list', host_id=host_id))
+
+@app.route('/host/<host_id>/backups/delete_job/<job_id>', methods=['POST'])
+def delete_backup_job(host_id, job_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        connection.cluster.backup(job_id).delete()
+        flash(f"Backup job '{job_id}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete backup job: {str(e)}", 'danger')
+    
+    return redirect(url_for('backup_list', host_id=host_id))
+
+@app.route('/host/<host_id>/backups/restore', methods=['POST'])
+def restore_backup(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    node = request.form.get('node')
+    archive = request.form.get('archive')
+    storage = request.form.get('storage')
+    target_vmid = request.form.get('target_vmid')
+    
+    if not node or not archive or not storage:
+        flash("Missing required parameters", 'danger')
+        return redirect(url_for('backup_list', host_id=host_id))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Build parameters for restore
+        params = {
+            'archive': archive,
+            'storage': storage
+        }
+        
+        # Add target VMID if provided (for restoring to a different VM)
+        if target_vmid:
+            params['vmid'] = target_vmid
+        
+        # Start restore job
+        result = connection.nodes(node).vzdump.restore.post(**params)
+        
+        flash(f"Restore job started successfully. Task ID: {result.get('data')}", 'success')
+    except Exception as e:
+        flash(f"Failed to start restore: {str(e)}", 'danger')
+    
+    return redirect(url_for('backup_list', host_id=host_id))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
