@@ -464,6 +464,180 @@ def container_action():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/bulk/vm/action', methods=['POST'])
+def bulk_vm_action():
+    host_id = request.form.get('host_id')
+    action = request.form.get('action')
+    vms = json.loads(request.form.get('vms', '[]'))
+    
+    if host_id not in proxmox_connections:
+        return jsonify({'success': False, 'error': 'Host not found'})
+    
+    if not vms:
+        return jsonify({'success': False, 'error': 'No VMs specified'})
+    
+    if action not in ['start', 'stop', 'shutdown', 'reset']:
+        return jsonify({'success': False, 'error': 'Invalid action'})
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        processed = 0
+        errors = []
+        
+        for vm in vms:
+            try:
+                node = vm.get('node')
+                vmid = vm.get('vmid')
+                
+                if action == 'start':
+                    connection.nodes(node).qemu(vmid).status.start.post()
+                elif action == 'stop':
+                    connection.nodes(node).qemu(vmid).status.stop.post()
+                elif action == 'shutdown':
+                    connection.nodes(node).qemu(vmid).status.shutdown.post()
+                elif action == 'reset':
+                    connection.nodes(node).qemu(vmid).status.reset.post()
+                
+                processed += 1
+            except Exception as e:
+                errors.append(f"VM {vmid} on node {node}: {str(e)}")
+        
+        if errors:
+            return jsonify({
+                'success': True,
+                'processed': processed,
+                'warnings': errors,
+                'message': f"Processed {processed} VMs with {len(errors)} errors"
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'processed': processed,
+                'message': f"Successfully processed {processed} VMs"
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/bulk/container/action', methods=['POST'])
+def bulk_container_action():
+    host_id = request.form.get('host_id')
+    action = request.form.get('action')
+    containers = json.loads(request.form.get('containers', '[]'))
+    
+    if host_id not in proxmox_connections:
+        return jsonify({'success': False, 'error': 'Host not found'})
+    
+    if not containers:
+        return jsonify({'success': False, 'error': 'No containers specified'})
+    
+    if action not in ['start', 'stop', 'shutdown']:
+        return jsonify({'success': False, 'error': 'Invalid action'})
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        processed = 0
+        errors = []
+        
+        for container in containers:
+            try:
+                node = container.get('node')
+                vmid = container.get('vmid')
+                
+                if action == 'start':
+                    connection.nodes(node).lxc(vmid).status.start.post()
+                elif action == 'stop':
+                    connection.nodes(node).lxc(vmid).status.stop.post()
+                elif action == 'shutdown':
+                    connection.nodes(node).lxc(vmid).status.shutdown.post()
+                
+                processed += 1
+            except Exception as e:
+                errors.append(f"Container {vmid} on node {node}: {str(e)}")
+        
+        if errors:
+            return jsonify({
+                'success': True,
+                'processed': processed,
+                'warnings': errors,
+                'message': f"Processed {processed} containers with {len(errors)} errors"
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'processed': processed,
+                'message': f"Successfully processed {processed} containers"
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/bulk/migrate', methods=['POST'])
+def bulk_migrate():
+    host_id = request.form.get('host_id')
+    type = request.form.get('type')
+    items = json.loads(request.form.get('items', '[]'))
+    target_node = request.form.get('target_node')
+    online = request.form.get('online') == 'true'
+    with_local_disks = request.form.get('with_local_disks') == 'true'
+    
+    if host_id not in proxmox_connections:
+        return jsonify({'success': False, 'error': 'Host not found'})
+    
+    if not items:
+        return jsonify({'success': False, 'error': 'No resources specified for migration'})
+    
+    if not target_node:
+        return jsonify({'success': False, 'error': 'Target node is required'})
+    
+    if type not in ['qemu', 'lxc']:
+        return jsonify({'success': False, 'error': 'Invalid resource type'})
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        processed = 0
+        errors = []
+        
+        # Create migration parameters
+        params = {
+            'target': target_node
+        }
+        
+        if online:
+            params['online'] = 1
+            
+        if with_local_disks:
+            params['with-local-disks'] = 1
+        
+        for item in items:
+            try:
+                node = item.get('node')
+                vmid = item.get('vmid')
+                
+                # Start migration
+                if type == 'qemu':
+                    connection.nodes(node).qemu(vmid).migrate.post(**params)
+                elif type == 'lxc':
+                    connection.nodes(node).lxc(vmid).migrate.post(**params)
+                
+                processed += 1
+            except Exception as e:
+                errors.append(f"Resource {vmid} on node {node}: {str(e)}")
+        
+        if errors:
+            return jsonify({
+                'success': True,
+                'processed': processed,
+                'warnings': errors,
+                'message': f"Started migration for {processed} resources with {len(errors)} errors"
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'processed': processed,
+                'message': f"Successfully started migration for {processed} resources"
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/host/<host_id>/storage')
 def storage_list(host_id):
     if host_id not in proxmox_connections:
