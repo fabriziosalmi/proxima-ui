@@ -122,6 +122,7 @@
                                     <th class="sortable" data-sort="status">Status <i class="fas fa-sort"></i></th>
                                     <th class="sortable" data-sort="memory">Memory <i class="fas fa-sort"></i></th>
                                     <th class="sortable" data-sort="cpu">CPU <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="tags">Tags <i class="fas fa-sort"></i></th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -153,6 +154,15 @@
                                             {{ vm.maxcpu }}
                                         {% else %}
                                             N/A
+                                        {% endif %}
+                                    </td>
+                                    <td data-value="{{ vm.tags|default('') }}">
+                                        {% if vm.tags is defined and vm.tags %}
+                                            {% for tag in vm.tags.split(',') %}
+                                                <span class="badge bg-info">{{ tag }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <small class="text-muted">No tags</small>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -232,6 +242,7 @@
                                     <th class="sortable" data-sort="status">Status <i class="fas fa-sort"></i></th>
                                     <th class="sortable" data-sort="memory">Memory <i class="fas fa-sort"></i></th>
                                     <th class="sortable" data-sort="cpu">CPU <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="tags">Tags <i class="fas fa-sort"></i></th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -263,6 +274,15 @@
                                             {{ container.maxcpu }}
                                         {% else %}
                                             N/A
+                                        {% endif %}
+                                    </td>
+                                    <td data-value="{{ container.tags|default('') }}">
+                                        {% if container.tags is defined and container.tags %}
+                                            {% for tag in container.tags.split(',') %}
+                                                <span class="badge bg-info">{{ tag }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <small class="text-muted">No tags</small>
                                         {% endif %}
                                     </td>
                                     <td>
