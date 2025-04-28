@@ -564,6 +564,12 @@ $(document).ready(function() {
             $('#userTabs a[href="#users"]').tab('show');
         }
     });
+    
+    // Ensure modal functionality is properly initialized
+    $('[data-toggle="modal"]').click(function() {
+        var targetModal = $(this).data('target');
+        $(targetModal).modal('show');
+    });
 
     // Handle Edit User Modal
     $('#editUserModal').on('show.bs.modal', function (event) {
