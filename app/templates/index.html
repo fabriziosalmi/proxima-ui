@@ -101,52 +101,58 @@
     <!-- Resource Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title mb-0">Total Hosts</h6>
-                            <h2 class="mt-2 mb-0">{{ hosts|length }}</h2>
-                            <small>&nbsp;</small>
-                        </div>
-                        <div>
-                            <i class="fas fa-server fa-3x opacity-50"></i>
+            <a href="{{ url_for('search_resources', type='host') }}" class="text-decoration-none">
+                <div class="card bg-primary text-white h-100 hover-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-0">Total Hosts</h6>
+                                <h2 class="mt-2 mb-0">{{ hosts|length }}</h2>
+                                <small>Click to view all</small>
+                            </div>
+                            <div>
+                                <i class="fas fa-server fa-3x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title mb-0">VMs</h6>
-                            <h2 class="mt-2 mb-0">{{ stats.vms_total }}</h2>
-                            <small>{{ stats.vms_running }} running</small>
-                        </div>
-                        <div>
-                            <i class="fas fa-desktop fa-3x opacity-50"></i>
+            <a href="{{ url_for('search_resources', type='vm') }}" class="text-decoration-none">
+                <div class="card bg-success text-white h-100 hover-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-0">VMs</h6>
+                                <h2 class="mt-2 mb-0">{{ stats.vms_total }}</h2>
+                                <small>{{ stats.vms_running }} running</small>
+                            </div>
+                            <div>
+                                <i class="fas fa-desktop fa-3x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card bg-info text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title mb-0">Containers</h6>
-                            <h2 class="mt-2 mb-0">{{ stats.containers_total }}</h2>
-                            <small>{{ stats.containers_running }} running</small>
-                        </div>
-                        <div>
-                            <i class="fas fa-cube fa-3x opacity-50"></i>
+            <a href="{{ url_for('search_resources', type='container') }}" class="text-decoration-none">
+                <div class="card bg-info text-white h-100 hover-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-0">Containers</h6>
+                                <h2 class="mt-2 mb-0">{{ stats.containers_total }}</h2>
+                                <small>{{ stats.containers_running }} running</small>
+                            </div>
+                            <div>
+                                <i class="fas fa-cube fa-3x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
             <div class="card bg-secondary text-white h-100">

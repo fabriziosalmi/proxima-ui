@@ -3547,5 +3547,165 @@ def search():
                           active_tab=active_tab,
                           available_hosts=list(available_hosts))
 
+@app.route('/search_resources')
+def search_resources():
+    """
+    Search and filter resources by type (host, vm, container)
+    This route is used for the dashboard cards to show all resources of a specific type
+    """
+    resource_type = request.args.get('type', '')
+    
+    if not resource_type:
+        flash("Resource type is required", 'warning')
+        return redirect(url_for('index'))
+    
+    # Initialize results
+    vm_results = []
+    container_results = []
+    node_results = []
+    available_hosts = set()
+    
+    # Search across all hosts
+    for host_id, host_data in proxmox_connections.items():
+        try:
+            connection = host_data['connection']
+            available_hosts.add(host_id)
+            
+            # Get nodes for this host
+            if resource_type == 'host':
+                nodes = connection.nodes.get()
+                for node in nodes:
+                    # Get node status for more details
+                    try:
+                        node_status = connection.nodes(node['node']).status.get()
+                        cpu_usage = node_status.get('cpu', 0) * 100  # CPU usage as percentage
+                        memory_total = node_status.get('memory', {}).get('total', 0)
+                        memory_used = node_status.get('memory', {}).get('used', 0)
+                        memory_usage = (memory_used / memory_total * 100) if memory_total > 0 else 0
+                        
+                        # Get VM and container counts
+                        vms = connection.nodes(node['node']).qemu.get()
+                        containers = connection.nodes(node['node']).lxc.get()
+                        vm_count = len(vms)
+                        container_count = len(containers)
+                    except Exception as e:
+                        print(f"Error getting status for node {node['node']}: {e}")
+                        cpu_usage = 0
+                        memory_usage = 0
+                        vm_count = 0
+                        container_count = 0
+                    
+                    node_info = {
+                        'host_id': host_id,
+                        'node': node['node'],
+                        'status': node.get('status', 'unknown'),
+                        'uptime': node.get('uptime', 0),
+                        'cpu': node.get('cpu', 0),
+                        'memory': node.get('mem', 0),
+                        'type': 'node',
+                        'cpu_usage': round(cpu_usage, 1),
+                        'memory_usage': round(memory_usage, 1),
+                        'vm_count': vm_count,
+                        'container_count': container_count
+                    }
+                    node_results.append(node_info)
+            
+            # Get VMs and containers if requested
+            nodes = connection.nodes.get()
+            for node in nodes:
+                node_name = node['node']
+                
+                # Get VMs for this node
+                if resource_type == 'vm':
+                    try:
+                        vms = connection.nodes(node_name).qemu.get()
+                        for vm in vms:
+                            vm_info = {
+                                'host_id': host_id,
+                                'node': node_name,
+                                'vmid': vm['vmid'],
+                                'name': vm.get('name', f"VM {vm['vmid']}"),
+                                'status': vm.get('status', 'unknown'),
+                                'cpu': vm.get('cpu', 0),
+                                'cpus': vm.get('cpus', 1),
+                                'maxmem': vm.get('maxmem', 0),
+                                'maxdisk': vm.get('maxdisk', 0),
+                                'uptime': vm.get('uptime', 0),
+                                'type': 'qemu',
+                                'tags': vm.get('tags', '')
+                            }
+                            vm_results.append(vm_info)
+                    except Exception as e:
+                        print(f"Error getting VMs for {node_name}: {e}")
+                
+                # Get containers for this node
+                if resource_type == 'container':
+                    try:
+                        containers = connection.nodes(node_name).lxc.get()
+                        for container in containers:
+                            container_info = {
+                                'host_id': host_id,
+                                'node': node_name,
+                                'vmid': container['vmid'],
+                                'name': container.get('name', f"CT {container['vmid']}"),
+                                'status': container.get('status', 'unknown'),
+                                'cpu': container.get('cpu', 0),
+                                'cpus': container.get('cpus', 1),
+                                'maxmem': container.get('maxmem', 0),
+                                'maxdisk': container.get('maxdisk', 0),
+                                'uptime': container.get('uptime', 0),
+                                'type': 'lxc',
+                                'tags': container.get('tags', '')
+                            }
+                            container_results.append(container_info)
+                    except Exception as e:
+                        print(f"Error getting containers for {node_name}: {e}")
+                    
+        except Exception as e:
+            print(f"Error querying host {host_id}: {e}")
+    
+    # Set the active tab based on the resource type
+    if resource_type == 'host':
+        active_tab = 'nodes'
+    elif resource_type == 'vm':
+        active_tab = 'vms'
+    elif resource_type == 'container':
+        active_tab = 'containers'
+    else:
+        active_tab = None
+    
+    # Set search flags based on resource type
+    search_vms = resource_type == 'vm'
+    search_containers = resource_type == 'container'
+    search_nodes = resource_type == 'host'
+    search_storage = False
+    
+    # Determine title for the search page
+    if resource_type == 'host':
+        title = "All Hosts"
+    elif resource_type == 'vm':
+        title = "All Virtual Machines"
+    elif resource_type == 'container':
+        title = "All Containers"
+    else:
+        title = "Search Results"
+    
+    return render_template('search_results.html',
+                          query=title,
+                          status='',
+                          resource_type=resource_type,
+                          selected_host_id='',
+                          tag='',
+                          vm_results=vm_results,
+                          container_results=container_results,
+                          node_results=node_results,
+                          storage_results=[],
+                          search_vms=search_vms,
+                          search_containers=search_containers,
+                          search_nodes=search_nodes,
+                          search_storage=search_storage,
+                          active_tab=active_tab,
+                          available_hosts=list(available_hosts))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
