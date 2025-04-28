@@ -2621,5 +2621,305 @@ def migrate_vm(host_id):
     
     return redirect(url_for('migrate_vm_form', host_id=host_id))
 
+@app.route('/vm/<host_id>/<node>/<vmid>/clone', methods=['GET', 'POST'])
+def clone_vm(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get VM info for form defaults
+        vm_info = connection.nodes(node).qemu(vmid).status.current.get()
+        
+        # Get next available VMID
+        try:
+            next_vmid = connection.cluster.nextid.get()
+        except Exception:
+            # Fallback if cluster API not available
+            vms = connection.nodes(node).qemu.get()
+            containers = connection.nodes(node).lxc.get()
+            existing_ids = [int(vm['vmid']) for vm in vms + containers]
+            next_vmid = max(existing_ids) + 1 if existing_ids else 100
+        
+        # Get available storage pools and nodes
+        storages = connection.nodes(node).storage.get()
+        nodes = connection.nodes.get()
+        
+        if request.method == 'POST':
+            # Get form data
+            target_vmid = request.form.get('target_vmid', next_vmid)
+            target_name = request.form.get('target_name')
+            target_node = request.form.get('target_node', node)
+            full_clone = request.form.get('full_clone') == 'on'
+            storage = request.form.get('storage', '')
+            
+            # Build clone parameters
+            params = {
+                'newid': target_vmid,
+                'name': target_name,
+                'full': 1 if full_clone else 0
+            }
+            
+            # Add target storage if specified
+            if storage:
+                params['target'] = storage
+                
+            # Add target node if different from source
+            if target_node != node:
+                params['target'] = target_node
+            
+            # Start clone operation
+            connection.nodes(node).qemu(vmid).clone.post(**params)
+            
+            flash(f"Started cloning VM {vmid} to {target_name} (ID: {target_vmid})", 'success')
+            
+            # Redirect to the node details page
+            if target_node == node:
+                return redirect(url_for('node_details', host_id=host_id, node=node))
+            else:
+                return redirect(url_for('node_details', host_id=host_id, node=target_node))
+        
+        # Render clone form
+        return render_template('clone_vm.html',
+                            host_id=host_id,
+                            node=node,
+                            vmid=vmid,
+                            vm_info=vm_info,
+                            next_vmid=next_vmid,
+                            nodes=nodes,
+                            storages=[s for s in storages if 'images' in s.get('content', '').split(',')])
+    except Exception as e:
+        flash(f"Failed to prepare VM clone: {str(e)}", 'danger')
+        return redirect(url_for('vm_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/clone', methods=['GET', 'POST'])
+def clone_container(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get container info for form defaults
+        container_info = connection.nodes(node).lxc(vmid).status.current.get()
+        
+        # Get next available VMID
+        try:
+            next_vmid = connection.cluster.nextid.get()
+        except Exception:
+            # Fallback if cluster API not available
+            vms = connection.nodes(node).qemu.get()
+            containers = connection.nodes(node).lxc.get()
+            existing_ids = [int(vm['vmid']) for vm in vms + containers]
+            next_vmid = max(existing_ids) + 1 if existing_ids else 100
+        
+        # Get available storage pools and nodes
+        storages = connection.nodes(node).storage.get()
+        nodes = connection.nodes.get()
+        
+        if request.method == 'POST':
+            # Get form data
+            target_vmid = request.form.get('target_vmid', next_vmid)
+            target_hostname = request.form.get('target_hostname')
+            target_node = request.form.get('target_node', node)
+            storage = request.form.get('storage', '')
+            
+            # Build clone parameters
+            params = {
+                'newid': target_vmid,
+                'hostname': target_hostname
+            }
+            
+            # Add target storage if specified
+            if storage:
+                params['storage'] = storage
+                
+            # Add target node if different from source
+            if target_node != node:
+                params['target'] = target_node
+            
+            # Start clone operation
+            connection.nodes(node).lxc(vmid).clone.post(**params)
+            
+            flash(f"Started cloning Container {vmid} to {target_hostname} (ID: {target_vmid})", 'success')
+            
+            # Redirect to the node details page
+            if target_node == node:
+                return redirect(url_for('node_details', host_id=host_id, node=node))
+            else:
+                return redirect(url_for('node_details', host_id=host_id, node=target_node))
+        
+        # Render clone form
+        return render_template('clone_container.html',
+                            host_id=host_id,
+                            node=node,
+                            vmid=vmid,
+                            container_info=container_info,
+                            next_vmid=next_vmid,
+                            nodes=nodes,
+                            storages=[s for s in storages if 'rootdir' in s.get('content', '').split(',')])
+    except Exception as e:
+        flash(f"Failed to prepare container clone: {str(e)}", 'danger')
+        return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/vm/<host_id>/<node>/<vmid>/config', methods=['GET', 'POST'])
+def edit_vm_config(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get VM current configuration
+        vm_config = connection.nodes(node).qemu(vmid).config.get()
+        vm_status = connection.nodes(node).qemu(vmid).status.current.get()
+        
+        if request.method == 'POST':
+            # Process configuration changes
+            params = {}
+            
+            # Basic settings
+            name = request.form.get('name')
+            if name and name != vm_config.get('name'):
+                params['name'] = name
+                
+            # CPU settings
+            cores = request.form.get('cores')
+            if cores and int(cores) != vm_config.get('cores', 1):
+                params['cores'] = cores
+                
+            sockets = request.form.get('sockets')
+            if sockets and int(sockets) != vm_config.get('sockets', 1):
+                params['sockets'] = sockets
+                
+            # Memory settings
+            memory = request.form.get('memory')
+            if memory and int(memory) != vm_config.get('memory', 512):
+                params['memory'] = memory
+                
+            # BIOS setting
+            bios = request.form.get('bios')
+            if bios and bios != vm_config.get('bios', 'seabios'):
+                params['bios'] = bios
+                
+            # Network settings for each interface
+            for key in request.form:
+                if key.startswith('net') and key.endswith('_config'):
+                    net_id = key.split('_')[0]  # Extract 'netX' part
+                    net_value = request.form.get(key)
+                    
+                    # Check if the value has changed
+                    if net_value != vm_config.get(net_id, ''):
+                        params[net_id] = net_value
+            
+            # Apply the changes if there are any
+            if params:
+                connection.nodes(node).qemu(vmid).config.put(**params)
+                flash("VM configuration updated successfully", 'success')
+                return redirect(url_for('vm_details', host_id=host_id, node=node, vmid=vmid))
+            else:
+                flash("No changes were made to the VM configuration", 'info')
+        
+        return render_template('edit_vm_config.html',
+                          host_id=host_id,
+                          node=node,
+                          vmid=vmid,
+                          vm_config=vm_config,
+                          vm_status=vm_status)
+    except Exception as e:
+        flash(f"Failed to edit VM configuration: {str(e)}", 'danger')
+        return redirect(url_for('vm_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/config', methods=['GET', 'POST'])
+def edit_container_config(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get container current configuration
+        container_config = connection.nodes(node).lxc(vmid).config.get()
+        container_status = connection.nodes(node).lxc(vmid).status.current.get()
+        
+        if request.method == 'POST':
+            # Process configuration changes
+            params = {}
+            
+            # Basic settings
+            hostname = request.form.get('hostname')
+            if hostname and hostname != container_config.get('hostname'):
+                params['hostname'] = hostname
+                
+            # CPU settings
+            cores = request.form.get('cores')
+            if cores and int(cores) != container_config.get('cores', 1):
+                params['cores'] = cores
+                
+            # Memory settings
+            memory = request.form.get('memory')
+            if memory and int(memory) != container_config.get('memory', 512):
+                params['memory'] = memory
+                
+            swap = request.form.get('swap')
+            if swap and int(swap) != container_config.get('swap', 0):
+                params['swap'] = swap
+                
+            # Disk settings
+            if 'rootfs' in container_config:
+                disk_size = request.form.get('disk_size')
+                if disk_size:
+                    # Parse current disk size
+                    current_disk = container_config.get('rootfs', '')
+                    if current_disk:
+                        # Get the storage part and size part
+                        parts = current_disk.split(',')
+                        if len(parts) >= 1:
+                            storage_part = parts[0].split(':')[0]
+                            new_size = f"{disk_size}G" if not disk_size.endswith('G') else disk_size
+                            params['rootfs'] = f"{storage_part}:{new_size}"
+            
+            # Network settings for each interface
+            for key in request.form:
+                if key.startswith('net') and key.endswith('_config'):
+                    net_id = key.split('_')[0]  # Extract 'netX' part
+                    net_value = request.form.get(key)
+                    
+                    # Check if the value has changed
+                    if net_value != container_config.get(net_id, ''):
+                        params[net_id] = net_value
+            
+            # DNS settings
+            nameserver = request.form.get('nameserver')
+            if nameserver and nameserver != container_config.get('nameserver', ''):
+                params['nameserver'] = nameserver
+                
+            searchdomain = request.form.get('searchdomain')
+            if searchdomain and searchdomain != container_config.get('searchdomain', ''):
+                params['searchdomain'] = searchdomain
+            
+            # Apply the changes if there are any
+            if params:
+                connection.nodes(node).lxc(vmid).config.put(**params)
+                flash("Container configuration updated successfully", 'success')
+                return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
+            else:
+                flash("No changes were made to the container configuration", 'info')
+        
+        return render_template('edit_container_config.html',
+                          host_id=host_id,
+                          node=node,
+                          vmid=vmid,
+                          container_config=container_config,
+                          container_status=container_status)
+    except Exception as e:
+        flash(f"Failed to edit container configuration: {str(e)}", 'danger')
+        return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Edit Container Configuration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=vmid) }}">Container {{ vmid }}</a></li>
+        <li class="breadcrumb-item active">Edit Configuration</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-cogs"></i> Edit Container Configuration</h1>
+    </div>
+</div>
+
+<!-- Warning for running Container -->
+{% if container_status.status == 'running' %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> This container is currently running. Some changes may require a restart to take effect.
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <h5>Container Configuration</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('edit_container_config', host_id=host_id, node=node, vmid=vmid) }}" method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4 class="mb-3">General Settings</h4>
+                    
+                    <div class="mb-3">
+                        <label for="hostname" class="form-label">Hostname</label>
+                        <input type="text" class="form-control" id="hostname" name="hostname" value="{{ container_config.hostname }}" required>
+                    </div>
+                    
+                    <h4 class="mb-3 mt-4">Resources</h4>
+                    
+                    <div class="mb-3">
+                        <label for="cores" class="form-label">CPU Cores</label>
+                        <input type="number" class="form-control" id="cores" name="cores" min="1" value="{{ container_config.cores|default(1) }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="memory" class="form-label">Memory (MB)</label>
+                        <input type="number" class="form-control" id="memory" name="memory" min="128" value="{{ container_config.memory|default(512) }}" step="128">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="swap" class="form-label">Swap (MB)</label>
+                        <input type="number" class="form-control" id="swap" name="swap" min="0" value="{{ container_config.swap|default(0) }}" step="128">
+                    </div>
+
+                    {% if container_config.rootfs %}
+                    <div class="mb-3">
+                        <label for="disk_size" class="form-label">Disk Size (GB)</label>
+                        {% set current_size = container_config.rootfs.split(',')[1].split(':')[1] if ',' in container_config.rootfs and ':' in container_config.rootfs.split(',')[1] else container_config.rootfs.split(':')[1] if ':' in container_config.rootfs else '8G' %}
+                        {% set size_number = current_size.replace('G', '') %}
+                        <input type="number" class="form-control" id="disk_size" name="disk_size" min="1" value="{{ size_number }}">
+                        <div class="form-text">Size of the root filesystem in GB.</div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <h4 class="mb-3">Network Interfaces</h4>
+                    
+                    {% for key, value in container_config.items() %}
+                        {% if key.startswith('net') %}
+                            <div class="mb-3">
+                                <label for="{{ key }}_config" class="form-label">{{ key }}</label>
+                                <input type="text" class="form-control" id="{{ key }}_config" name="{{ key }}_config" value="{{ value }}">
+                                <div class="form-text">Format: name=eth0,bridge=vmbr0,ip=dhcp</div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <h4 class="mb-3 mt-4">DNS Settings</h4>
+                    
+                    <div class="mb-3">
+                        <label for="nameserver" class="form-label">DNS Servers</label>
+                        <input type="text" class="form-control" id="nameserver" name="nameserver" value="{{ container_config.nameserver|default('') }}">
+                        <div class="form-text">Space-separated list of DNS servers (e.g., 8.8.8.8 8.8.4.4)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="searchdomain" class="form-label">Search Domain</label>
+                        <input type="text" class="form-control" id="searchdomain" name="searchdomain" value="{{ container_config.searchdomain|default('') }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

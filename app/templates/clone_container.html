@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Clone Container{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=vmid) }}">Container {{ vmid }}</a></li>
+        <li class="breadcrumb-item active">Clone</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-copy"></i> Clone Container: {{ container_info.name }}</h1>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Clone Container Settings</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('clone_container', host_id=host_id, node=node, vmid=vmid) }}" method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="target_vmid" class="form-label">New Container ID</label>
+                        <input type="number" class="form-control" id="target_vmid" name="target_vmid" value="{{ next_vmid }}" required>
+                        <div class="form-text">Unique identifier for the new container.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="target_hostname" class="form-label">New Hostname</label>
+                        <input type="text" class="form-control" id="target_hostname" name="target_hostname" 
+                            value="{{ container_info.name }}-clone" required>
+                        <div class="form-text">Hostname for the new container.</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="target_node" class="form-label">Target Node</label>
+                        <select class="form-select" id="target_node" name="target_node" required>
+                            {% for node_obj in nodes %}
+                                <option value="{{ node_obj.node }}" {% if node_obj.node == node %}selected{% endif %}>
+                                    {{ node_obj.node }} ({{ node_obj.status }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">The node where the new container will be created.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="storage" class="form-label">Target Storage</label>
+                        <select class="form-select" id="storage" name="storage">
+                            <option value="">Same as source</option>
+                            {% for storage in storages %}
+                                <option value="{{ storage.storage }}">{{ storage.storage }} ({{ storage.type }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Storage pool for the new container's rootfs.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Cloning will create a new container with the same configuration as the source.
+                The operation may take some time depending on container size and storage type.
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">Clone Container</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -24,6 +24,12 @@
             <a href="{{ url_for('container_firewall', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-danger">
                 <i class="fas fa-shield-alt"></i> Firewall
             </a>
+            <a href="{{ url_for('clone_container', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-success">
+                <i class="fas fa-copy"></i> Clone
+            </a>
+            <a href="{{ url_for('edit_container_config', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-primary">
+                <i class="fas fa-cogs"></i> Edit Config
+            </a>
             {% if container_info.status == 'running' %}
                 <button type="button" class="btn btn-warning container-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
                     <i class="fas fa-power-off"></i> Shutdown
