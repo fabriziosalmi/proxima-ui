@@ -902,5 +902,198 @@ def create_container(host_id, node):
         flash(f"Failed to get node details: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
 
+@app.route('/node/<host_id>/<node>/network')
+def node_network(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get network interfaces
+        network_interfaces = connection.nodes(node).network.get()
+        
+        # Get node DNS configuration
+        try:
+            dns_config = connection.nodes(node).dns.get()
+        except Exception:
+            dns_config = {'nameserver': '', 'search': ''}
+        
+        return render_template('node_network.html',
+                            host_id=host_id,
+                            node=node,
+                            interfaces=network_interfaces,
+                            dns_config=dns_config)
+    except Exception as e:
+        flash(f"Failed to get network configuration: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/network/create', methods=['POST'])
+def create_network_interface(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        iface_type = request.form.get('type')
+        iface_name = request.form.get('name')
+        
+        # Base parameters for all interface types
+        params = {
+            'type': iface_type,
+        }
+        
+        # Add type-specific parameters
+        if iface_type == 'bridge':
+            # Bridge interface parameters
+            params['bridge_ports'] = request.form.get('bridge_ports', '')
+            params['autostart'] = request.form.get('autostart') == 'on'
+            
+            # IP configuration
+            ip_config = request.form.get('ipv4_config')
+            if ip_config == 'static':
+                params['cidr'] = request.form.get('ipv4_cidr')
+                params['gateway'] = request.form.get('ipv4_gateway')
+            elif ip_config == 'dhcp':
+                params['cidr'] = 'dhcp'
+        
+        elif iface_type == 'bond':
+            # Bond interface parameters
+            params['slaves'] = request.form.get('bond_slaves')
+            params['bond_mode'] = request.form.get('bond_mode', 'balance-rr')
+            params['autostart'] = request.form.get('autostart') == 'on'
+            
+            # IP configuration
+            ip_config = request.form.get('ipv4_config')
+            if ip_config == 'static':
+                params['cidr'] = request.form.get('ipv4_cidr')
+                params['gateway'] = request.form.get('ipv4_gateway')
+            elif ip_config == 'dhcp':
+                params['cidr'] = 'dhcp'
+        
+        elif iface_type == 'vlan':
+            # VLAN interface parameters
+            params['vlan_raw_device'] = request.form.get('vlan_raw_device')
+            params['vlan_id'] = request.form.get('vlan_id')
+            params['autostart'] = request.form.get('autostart') == 'on'
+            
+            # IP configuration
+            ip_config = request.form.get('ipv4_config')
+            if ip_config == 'static':
+                params['cidr'] = request.form.get('ipv4_cidr')
+                params['gateway'] = request.form.get('ipv4_gateway')
+            elif ip_config == 'dhcp':
+                params['cidr'] = 'dhcp'
+        
+        # Create the network interface
+        connection.nodes(node).network.post(iface=iface_name, **params)
+        
+        # Apply network configuration (required to activate the changes)
+        connection.nodes(node).network.put()
+        
+        flash(f"Network interface '{iface_name}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create network interface: {str(e)}", 'danger')
+    
+    return redirect(url_for('node_network', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/network/<iface>/update', methods=['POST'])
+def update_network_interface(host_id, node, iface):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        autostart = request.form.get('autostart') == 'on'
+        ip_config = request.form.get('ipv4_config')
+        
+        # Base parameters for the update
+        params = {
+            'autostart': autostart,
+        }
+        
+        # Add IP configuration
+        if ip_config == 'static':
+            params['cidr'] = request.form.get('ipv4_cidr')
+            params['gateway'] = request.form.get('ipv4_gateway')
+        elif ip_config == 'dhcp':
+            params['cidr'] = 'dhcp'
+        
+        # Type-specific parameters
+        iface_type = request.form.get('type')
+        if iface_type == 'bridge':
+            params['bridge_ports'] = request.form.get('bridge_ports', '')
+        elif iface_type == 'bond':
+            params['slaves'] = request.form.get('bond_slaves')
+            params['bond_mode'] = request.form.get('bond_mode', 'balance-rr')
+        elif iface_type == 'vlan':
+            params['vlan_raw_device'] = request.form.get('vlan_raw_device')
+            params['vlan_id'] = request.form.get('vlan_id')
+        
+        # Update the network interface
+        connection.nodes(node).network(iface).put(**params)
+        
+        # Apply network configuration
+        connection.nodes(node).network.put()
+        
+        flash(f"Network interface '{iface}' updated successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update network interface: {str(e)}", 'danger')
+    
+    return redirect(url_for('node_network', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/network/<iface>/delete', methods=['POST'])
+def delete_network_interface(host_id, node, iface):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the network interface
+        connection.nodes(node).network(iface).delete()
+        
+        # Apply network configuration
+        connection.nodes(node).network.put()
+        
+        flash(f"Network interface '{iface}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete network interface: {str(e)}", 'danger')
+    
+    return redirect(url_for('node_network', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/dns/update', methods=['POST'])
+def update_dns_config(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        nameserver = request.form.get('nameserver')
+        search_domain = request.form.get('search_domain')
+        
+        # Update DNS configuration
+        connection.nodes(node).dns.put(
+            nameserver=nameserver,
+            search=search_domain
+        )
+        
+        flash("DNS configuration updated successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update DNS configuration: {str(e)}", 'danger')
+    
+    return redirect(url_for('node_network', host_id=host_id, node=node))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

@@ -29,3 +29,28 @@ body {
 .badge {
     font-size: 85%;
 }
+
+/* Sortable table styles */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sortable i {
+    margin-left: 5px;
+    opacity: 0.5;
+}
+
+.sortable[data-sort-direction="asc"] i.fa-sort-up,
+.sortable[data-sort-direction="desc"] i.fa-sort-down {
+    opacity: 1;
+}
+
+/* Add fade effect for table row hover */
+.table-hover tbody tr:hover {
+    transition: background-color 0.15s ease-in-out;
+}

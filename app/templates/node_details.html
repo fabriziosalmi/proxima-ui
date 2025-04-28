@@ -23,6 +23,9 @@
             <a href="{{ url_for('create_container', host_id=host_id, node=node) }}" class="btn btn-success">
                 <i class="fas fa-plus"></i> Create Container
             </a>
+            <a href="{{ url_for('node_network', host_id=host_id, node=node) }}" class="btn btn-info">
+                <i class="fas fa-network-wired"></i> Network
+            </a>
         </div>
     </div>
 </div>
@@ -76,23 +79,23 @@
             <div class="card-body">
                 {% if vms %}
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table class="table table-striped table-hover" id="vmsTable">
                             <thead>
                                 <tr>
-                                    <th>VMID</th>
-                                    <th>Name</th>
-                                    <th>Status</th>
-                                    <th>Memory</th>
-                                    <th>CPU</th>
+                                    <th class="sortable" data-sort="vmid">VMID <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="name">Name <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="status">Status <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="memory">Memory <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="cpu">CPU <i class="fas fa-sort"></i></th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for vm in vms %}
                                 <tr>
-                                    <td>{{ vm.vmid }}</td>
-                                    <td>{{ vm.name }}</td>
-                                    <td>
+                                    <td data-value="{{ vm.vmid }}">{{ vm.vmid }}</td>
+                                    <td data-value="{{ vm.name }}">{{ vm.name }}</td>
+                                    <td data-value="{{ vm.status }}">
                                         {% if vm.status == 'running' %}
                                             <span class="badge bg-success">Running</span>
                                         {% elif vm.status == 'stopped' %}
@@ -101,8 +104,8 @@
                                             <span class="badge bg-secondary">{{ vm.status }}</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ (vm.maxmem / (1024*1024))|round(0) }} MB</td>
-                                    <td>
+                                    <td data-value="{{ vm.maxmem }}">{{ (vm.maxmem / (1024*1024))|round(0) }} MB</td>
+                                    <td data-value="{% if vm.cpus is defined %}{{ vm.cpus }}{% elif vm.maxcpu is defined %}{{ vm.maxcpu }}{% else %}0{% endif %}">
                                         {% if vm.cpus is defined %}
                                             {{ vm.cpus }}
                                         {% elif vm.maxcpu is defined %}
@@ -154,23 +157,23 @@
             <div class="card-body">
                 {% if containers %}
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table class="table table-striped table-hover" id="containersTable">
                             <thead>
                                 <tr>
-                                    <th>CTID</th>
-                                    <th>Name</th>
-                                    <th>Status</th>
-                                    <th>Memory</th>
-                                    <th>CPU</th>
+                                    <th class="sortable" data-sort="ctid">CTID <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="name">Name <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="status">Status <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="memory">Memory <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="cpu">CPU <i class="fas fa-sort"></i></th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for container in containers %}
                                 <tr>
-                                    <td>{{ container.vmid }}</td>
-                                    <td>{{ container.name }}</td>
-                                    <td>
+                                    <td data-value="{{ container.vmid }}">{{ container.vmid }}</td>
+                                    <td data-value="{{ container.name }}">{{ container.name }}</td>
+                                    <td data-value="{{ container.status }}">
                                         {% if container.status == 'running' %}
                                             <span class="badge bg-success">Running</span>
                                         {% elif container.status == 'stopped' %}
@@ -179,8 +182,8 @@
                                             <span class="badge bg-secondary">{{ container.status }}</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ (container.maxmem / (1024*1024))|round(0) }} MB</td>
-                                    <td>
+                                    <td data-value="{{ container.maxmem }}">{{ (container.maxmem / (1024*1024))|round(0) }} MB</td>
+                                    <td data-value="{% if container.cpus is defined %}{{ container.cpus }}{% elif container.maxcpu is defined %}{{ container.maxcpu }}{% else %}0{% endif %}">
                                         {% if container.cpus is defined %}
                                             {{ container.cpus }}
                                         {% elif container.maxcpu is defined %}
