@@ -31,16 +31,6 @@
                     
                     <div class="collapse navbar-collapse" id="navbarContent">
                         <ul class="navbar-nav me-auto">
-                            <li class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
-                                <a class="nav-link" href="{{ url_for('index') }}">
-                                    <i class="fas fa-home"></i> Home
-                                </a>
-                            </li>
-                            <li class="nav-item {% if request.endpoint == 'add_host' %}active{% endif %}">
-                                <a class="nav-link" href="{{ url_for('add_host') }}">
-                                    <i class="fas fa-plus-circle"></i> Add Host
-                                </a>
-                            </li>
                             {% if 'host_id' in request.view_args %}
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">

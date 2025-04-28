@@ -497,19 +497,38 @@
     document.getElementById('timeframeSelect').addEventListener('change', refreshData);
     
     // Auto-refresh handler
-    let refreshTimer;
+    let refreshTimer = null;
     
     function setAutoRefresh() {
-        clearInterval(refreshTimer);
+        // Clear existing timer to prevent multiple timers
+        if (refreshTimer !== null) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
+        
         const interval = parseInt(document.getElementById('refreshInterval').value);
         if (interval > 0) {
             refreshTimer = setInterval(refreshData, interval);
+            
+            // Store in localStorage that auto-refresh is active
+            localStorage.setItem('node_metrics_autorefresh', interval);
+        } else {
+            // Remove from localStorage
+            localStorage.removeItem('node_metrics_autorefresh');
         }
     }
     
-    document.getElementById('refreshInterval').addEventListener('change', setAutoRefresh);
-    
-    // Initialize auto-refresh
-    setAutoRefresh();
+    // Initialize auto-refresh state from localStorage
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedInterval = localStorage.getItem('node_metrics_autorefresh');
+        if (savedInterval) {
+            document.getElementById('refreshInterval').value = savedInterval;
+        }
+        
+        document.getElementById('refreshInterval').addEventListener('change', setAutoRefresh);
+        
+        // Initialize auto-refresh
+        setAutoRefresh();
+    });
 </script>
 {% endblock %}
