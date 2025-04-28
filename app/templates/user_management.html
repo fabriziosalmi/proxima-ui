@@ -1,0 +1,629 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - {{ host_id }}{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">User Management <small class="text-muted">{{ host_id }}</small></h1>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <ul class="nav nav-tabs" id="userTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="users-tab" data-toggle="tab" href="#users" role="tab" aria-controls="users" aria-selected="true">Users</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="groups-tab" data-toggle="tab" href="#groups" role="tab" aria-controls="groups" aria-selected="false">Groups</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="roles-tab" data-toggle="tab" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="permissions-tab" data-toggle="tab" href="#permissions" role="tab" aria-controls="permissions" aria-selected="false">Permissions</a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="tab-content" id="userTabsContent">
+    <!-- Users Tab -->
+    <div class="tab-pane fade show active" id="users" role="tabpanel" aria-labelledby="users-tab">
+        <div class="card"></div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">User Accounts</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createUserModal">
+                    <i class="fas fa-plus"></i> Add User
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>Groups</th>
+                                <th>Enabled</th>
+                                <th>Expires</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.userid }}</td>
+                                <td>{{ user.firstname }} {{ user.lastname }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.groups|default('-', true) }}</td>
+                                <td>
+                                    {% if user.enable %}
+                                    <span class="badge badge-success">Enabled</span>
+                                    {% else %}
+                                    <span class="badge badge-danger">Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.expire and user.expire != 0 %}
+                                    {{ user.expire|timestamp_to_date }}
+                                    {% else %}
+                                    <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-secondary"
+                                                data-toggle="modal" 
+                                                data-target="#editUserModal"
+                                                data-userid="{{ user.userid }}"
+                                                data-firstname="{{ user.firstname|default('', true) }}"
+                                                data-lastname="{{ user.lastname|default('', true) }}"
+                                                data-email="{{ user.email|default('', true) }}"
+                                                data-groups="{{ user.groups|default('', true) }}"
+                                                data-enable="{{ user.enable|default(1, true) }}"
+                                                data-expire="{{ user.expire|default(0, true) }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-danger" 
+                                                data-toggle="modal" 
+                                                data-target="#deleteUserModal"
+                                                data-userid="{{ user.userid }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Groups Tab -->
+    <div class="tab-pane fade" id="groups" role="tabpanel" aria-labelledby="groups-tab">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">User Groups</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createGroupModal">
+                    <i class="fas fa-plus"></i> Add Group
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Group</th>
+                                <th>Comment</th>
+                                <th>Members</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group in groups %}
+                            <tr>
+                                <td>{{ group.groupid }}</td>
+                                <td>{{ group.comment|default('-', true) }}</td>
+                                <td>
+                                    {% set members = [] %}
+                                    {% for user in users %}
+                                        {% if user.groups and group.groupid in user.groups.split(',') %}
+                                            {% set _ = members.append(user.userid) %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {{ members|join(', ')|default('-', true) }}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-danger" 
+                                                data-toggle="modal" 
+                                                data-target="#deleteGroupModal"
+                                                data-groupid="{{ group.groupid }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Roles Tab -->
+    <div class="tab-pane fade" id="roles" role="tabpanel" aria-labelledby="roles-tab">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">System Roles</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>Description</th>
+                                <th>Privileges</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for role in roles %}
+                            <tr>
+                                <td>{{ role.roleid }}</td>
+                                <td>
+                                    {% if role.roleid == 'Administrator' %}
+                                    Full system administrator
+                                    {% elif role.roleid == 'NoAccess' %}
+                                    No access
+                                    {% elif role.roleid == 'PVEVMAdmin' %}
+                                    VM Administrator
+                                    {% elif role.roleid == 'PVEDatastoreAdmin' %}
+                                    Datastore Administrator
+                                    {% elif role.roleid == 'PVEAuditor' %}
+                                    System Auditor
+                                    {% elif role.roleid == 'PVEUserAdmin' %}
+                                    User Administrator
+                                    {% else %}
+                                    Custom role
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ role.privs|default('-', true) }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permissions Tab -->
+    <div class="tab-pane fade" id="permissions" role="tabpanel" aria-labelledby="permissions-tab">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Permissions</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addPermissionModal">
+                    <i class="fas fa-plus"></i> Add Permission
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> This view provides a way to add permissions, but doesn't display existing permissions directly.
+                    For a full permissions review, please use the Proxmox web UI.
+                </div>
+                
+                <h6 class="mt-4">Common Permission Paths:</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Path</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>/</code></td>
+                            <td>Root access to everything</td>
+                        </tr>
+                        <tr>
+                            <td><code>/access</code></td>
+                            <td>User and permission management</td>
+                        </tr>
+                        <tr>
+                            <td><code>/nodes</code></td>
+                            <td>All nodes</td>
+                        </tr>
+                        <tr>
+                            <td><code>/nodes/{node}</code></td>
+                            <td>Specific node</td>
+                        </tr>
+                        <tr>
+                            <td><code>/nodes/{node}/storage/{storage}</code></td>
+                            <td>Storage on specific node</td>
+                        </tr>
+                        <tr>
+                            <td><code>/vms/{vmid}</code></td>
+                            <td>Specific VM or container</td>
+                        </tr>
+                        <tr>
+                            <td><code>/pool/{poolid}</code></td>
+                            <td>Resource pool</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1" role="dialog" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form action="{{ url_for('create_user', host_id=host_id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createUserModalLabel">Create User</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="userid">Username</label>
+                        <input type="text" class="form-control" id="userid" name="userid" required>
+                        <small class="form-text text-muted">Format: username@realm (e.g., john@pam, admin@pve)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="firstname">First Name</label>
+                            <input type="text" class="form-control" id="firstname" name="firstname">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="lastname">Last Name</label>
+                            <input type="text" class="form-control" id="lastname" name="lastname">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="groups">Groups</label>
+                        <input type="text" class="form-control" id="groups" name="groups">
+                        <small class="form-text text-muted">Comma-separated list of groups</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="expire">Expire Date</label>
+                        <input type="date" class="form-control" id="expire" name="expire">
+                        <small class="form-text text-muted">Leave empty for no expiration</small>
+                    </div>
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="enable" name="enable" checked>
+                            <label class="custom-control-label" for="enable">Enable User</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" role="dialog" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="editUserForm" action="{{ url_for('update_user', host_id=host_id, userid='PLACEHOLDER') }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" class="form-control" id="edit_userid" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_password">Password</label>
+                        <input type="password" class="form-control" id="edit_password" name="password" placeholder="Leave empty to keep current password">
+                        <small class="form-text text-muted">Leave empty to keep the current password</small>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="edit_firstname">First Name</label>
+                            <input type="text" class="form-control" id="edit_firstname" name="firstname">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="edit_lastname">Last Name</label>
+                            <input type="text" class="form-control" id="edit_lastname" name="lastname">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_email">Email</label>
+                        <input type="email" class="form-control" id="edit_email" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_groups">Groups</label>
+                        <input type="text" class="form-control" id="edit_groups" name="groups">
+                        <small class="form-text text-muted">Comma-separated list of groups</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_expire">Expire Date</label>
+                        <input type="date" class="form-control" id="edit_expire" name="expire">
+                        <small class="form-text text-muted">Leave empty for no expiration</small>
+                    </div>
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="edit_enable" name="enable">
+                            <label class="custom-control-label" for="edit_enable">Enable User</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" role="dialog" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="deleteUserForm" action="{{ url_for('delete_user', host_id=host_id, userid='PLACEHOLDER') }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteUserModalLabel">Delete User</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the user <strong id="delete_userid_display"></strong>?</p>
+                    <p class="text-danger">This action cannot be undone!</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" role="dialog" aria-labelledby="createGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form action="{{ url_for('create_group', host_id=host_id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createGroupModalLabel">Create Group</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="groupid">Group Name</label>
+                        <input type="text" class="form-control" id="groupid" name="groupid" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="comment">Comment</label>
+                        <input type="text" class="form-control" id="comment" name="comment">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Group Modal -->
+<div class="modal fade" id="deleteGroupModal" tabindex="-1" role="dialog" aria-labelledby="deleteGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="deleteGroupForm" action="{{ url_for('delete_group', host_id=host_id, groupid='PLACEHOLDER') }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteGroupModalLabel">Delete Group</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the group <strong id="delete_groupid_display"></strong>?</p>
+                    <p class="text-danger">This action cannot be undone! Any users who are members of this group may lose permissions.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Permission Modal -->
+<div class="modal fade" id="addPermissionModal" tabindex="-1" role="dialog" aria-labelledby="addPermissionModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form action="{{ url_for('add_permission', host_id=host_id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addPermissionModalLabel">Add Permission</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="path">Path</label>
+                        <input type="text" class="form-control" id="path" name="path" required>
+                        <small class="form-text text-muted">E.g., "/", "/nodes", "/vms/{vmid}", "/pool/{poolid}"</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="roleid">Role</label>
+                        <select class="form-control" id="roleid" name="roleid" required>
+                            {% for role in roles %}
+                            <option value="{{ role.roleid }}">{{ role.roleid }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="type">Type</label>
+                        <select class="form-control" id="type" name="type" required>
+                            <option value="user">User</option>
+                            <option value="group">Group</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="userInputGroup">
+                        <label for="userid_or_group">User</label>
+                        <select class="form-control" id="userid_input" name="userid_or_group">
+                            {% for user in users %}
+                            <option value="{{ user.userid }}">{{ user.userid }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" id="groupInputGroup" style="display: none;">
+                        <label for="userid_or_group">Group</label>
+                        <select class="form-control" id="group_input" name="userid_or_group">
+                            {% for group in groups %}
+                            <option value="{{ group.groupid }}">{{ group.groupid }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="propagate" name="propagate" checked>
+                            <label class="custom-control-label" for="propagate">Propagate to Child Objects</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Permission</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Show the active tab from URL hash, if present
+    var hash = window.location.hash;
+    if (hash) {
+        $(`#userTabs a[href="${hash}"]`).tab('show');
+    }
+    
+    // Update URL hash when tab changes
+    $('#userTabs a').on('shown.bs.tab', function (e) {
+        window.location.hash = e.target.hash;
+    });
+
+    // Handle Edit User Modal
+    $('#editUserModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var userid = button.data('userid');
+        var firstname = button.data('firstname');
+        var lastname = button.data('lastname');
+        var email = button.data('email');
+        var groups = button.data('groups');
+        var enable = button.data('enable');
+        var expire = button.data('expire');
+        
+        var modal = $(this);
+        modal.find('#edit_userid').val(userid);
+        modal.find('#edit_firstname').val(firstname);
+        modal.find('#edit_lastname').val(lastname);
+        modal.find('#edit_email').val(email);
+        modal.find('#edit_groups').val(groups);
+        modal.find('#edit_enable').prop('checked', enable === 1);
+        
+        // Format expire date for input (if it exists)
+        if (expire && expire !== 0) {
+            var expireDate = new Date(expire * 1000);
+            var formattedDate = expireDate.toISOString().split('T')[0];
+            modal.find('#edit_expire').val(formattedDate);
+        } else {
+            modal.find('#edit_expire').val('');
+        }
+        
+        // Update the form action URL
+        var formAction = "{{ url_for('update_user', host_id=host_id, userid='') }}" + userid;
+        modal.find('#editUserForm').attr('action', formAction);
+    });
+    
+    // Handle Delete User Modal
+    $('#deleteUserModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var userid = button.data('userid');
+        
+        var modal = $(this);
+        modal.find('#delete_userid_display').text(userid);
+        
+        // Update the form action URL
+        var formAction = "{{ url_for('delete_user', host_id=host_id, userid='') }}" + userid;
+        modal.find('#deleteUserForm').attr('action', formAction);
+    });
+    
+    // Handle Delete Group Modal
+    $('#deleteGroupModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var groupid = button.data('groupid');
+        
+        var modal = $(this);
+        modal.find('#delete_groupid_display').text(groupid);
+        
+        // Update the form action URL
+        var formAction = "{{ url_for('delete_group', host_id=host_id, groupid='') }}" + groupid;
+        modal.find('#deleteGroupForm').attr('action', formAction);
+    });
+    
+    // Toggle user/group input fields in add permission modal
+    $('#type').change(function() {
+        if ($(this).val() === 'user') {
+            $('#userInputGroup').show();
+            $('#groupInputGroup').hide();
+            $('#userid_input').attr('name', 'userid_or_group');
+            $('#group_input').removeAttr('name');
+        } else {
+            $('#userInputGroup').hide();
+            $('#groupInputGroup').show();
+            $('#group_input').attr('name', 'userid_or_group');
+            $('#userid_input').removeAttr('name');
+        }
+    });
+    
+    // Convert expire date input to unix timestamp before form submission
+    $('form').submit(function() {
+        var expireInput = $(this).find('input[name="expire"]');
+        if (expireInput.length && expireInput.val()) {
+            var expireDate = new Date(expireInput.val());
+            var timestamp = Math.floor(expireDate.getTime() / 1000);
+            expireInput.val(timestamp);
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -70,6 +70,16 @@ def save_connections():
 # Initial load
 load_connections()
 
+# Custom template filters
+@app.template_filter('timestamp_to_date')
+def timestamp_to_date(timestamp):
+    """Convert a UNIX timestamp to a formatted date string."""
+    try:
+        dt = datetime.datetime.fromtimestamp(int(timestamp))
+        return dt.strftime('%Y-%m-%d %H:%M')
+    except (ValueError, TypeError):
+        return 'Invalid date'
+
 @app.route('/')
 def index():
     return render_template('index.html', hosts=proxmox_connections)
@@ -1094,6 +1104,220 @@ def update_dns_config(host_id, node):
         flash(f"Failed to update DNS configuration: {str(e)}", 'danger')
     
     return redirect(url_for('node_network', host_id=host_id, node=node))
+
+@app.route('/host/<host_id>/users')
+def user_management(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get users
+        users = connection.access.users.get()
+        
+        # Get groups
+        groups = connection.access.groups.get()
+        
+        # Get roles
+        roles = connection.access.roles.get()
+        
+        # Get domains (authentication realms)
+        domains = connection.access.domains.get()
+        
+        return render_template('user_management.html',
+                            host_id=host_id,
+                            users=users,
+                            groups=groups,
+                            roles=roles,
+                            domains=domains)
+    except Exception as e:
+        flash(f"Failed to get user list: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
+
+@app.route('/host/<host_id>/users/create', methods=['POST'])
+def create_user(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        userid = request.form.get('userid')
+        password = request.form.get('password')
+        email = request.form.get('email', '')
+        firstname = request.form.get('firstname', '')
+        lastname = request.form.get('lastname', '')
+        groups = request.form.get('groups', '')
+        enable = request.form.get('enable') == 'on'
+        expire = request.form.get('expire', 0)  # Unix timestamp or 0 for no expiry
+        
+        # Create user parameters
+        params = {
+            'userid': userid,
+            'password': password,
+            'email': email,
+            'firstname': firstname,
+            'lastname': lastname,
+            'groups': groups,
+            'enable': 1 if enable else 0
+        }
+        
+        # Add expiry if set
+        if expire and expire != '0':
+            params['expire'] = expire
+        
+        # Create the user
+        connection.access.users.post(**params)
+        
+        flash(f"User '{userid}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create user: {str(e)}", 'danger')
+    
+    return redirect(url_for('user_management', host_id=host_id))
+
+@app.route('/host/<host_id>/users/<userid>/update', methods=['POST'])
+def update_user(host_id, userid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        email = request.form.get('email', '')
+        firstname = request.form.get('firstname', '')
+        lastname = request.form.get('lastname', '')
+        groups = request.form.get('groups', '')
+        enable = request.form.get('enable') == 'on'
+        expire = request.form.get('expire', 0)
+        
+        # Create update parameters
+        params = {
+            'email': email,
+            'firstname': firstname,
+            'lastname': lastname,
+            'groups': groups,
+            'enable': 1 if enable else 0
+        }
+        
+        # Add expiry if set
+        if expire and expire != '0':
+            params['expire'] = expire
+        
+        # Check if password should be updated
+        password = request.form.get('password')
+        if password:
+            params['password'] = password
+        
+        # Update the user
+        connection.access.users(userid).put(**params)
+        
+        flash(f"User '{userid}' updated successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update user: {str(e)}", 'danger')
+    
+    return redirect(url_for('user_management', host_id=host_id))
+
+@app.route('/host/<host_id>/users/<userid>/delete', methods=['POST'])
+def delete_user(host_id, userid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the user
+        connection.access.users(userid).delete()
+        
+        flash(f"User '{userid}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete user: {str(e)}", 'danger')
+    
+    return redirect(url_for('user_management', host_id=host_id))
+
+@app.route('/host/<host_id>/groups/create', methods=['POST'])
+def create_group(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        groupid = request.form.get('groupid')
+        comment = request.form.get('comment', '')
+        
+        # Create the group
+        connection.access.groups.post(groupid=groupid, comment=comment)
+        
+        flash(f"Group '{groupid}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create group: {str(e)}", 'danger')
+    
+    return redirect(url_for('user_management', host_id=host_id))
+
+@app.route('/host/<host_id>/groups/<groupid>/delete', methods=['POST'])
+def delete_group(host_id, groupid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the group
+        connection.access.groups(groupid).delete()
+        
+        flash(f"Group '{groupid}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete group: {str(e)}", 'danger')
+    
+    return redirect(url_for('user_management', host_id=host_id))
+
+@app.route('/host/<host_id>/permissions/add', methods=['POST'])
+def add_permission(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        path = request.form.get('path')
+        roleid = request.form.get('roleid')
+        type = request.form.get('type')  # user or group
+        userid_or_group = request.form.get('userid_or_group')
+        propagate = request.form.get('propagate') == 'on'
+        
+        # Build parameters
+        params = {
+            'path': path,
+            'roles': roleid,
+            'propagate': 1 if propagate else 0
+        }
+        
+        # Add user or group parameter
+        if type == 'user':
+            params['users'] = userid_or_group
+        else:
+            params['groups'] = userid_or_group
+        
+        # Add the permission
+        connection.access.acl.put(**params)
+        
+        flash("Permission added successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to add permission: {str(e)}", 'danger')
+    
+    return redirect(url_for('user_management', host_id=host_id))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

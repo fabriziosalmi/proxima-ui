@@ -16,11 +16,14 @@
     </div>
     <div class="col-auto">
         <div class="btn-group" role="group">
-            <a href="{{ url_for('storage_list', host_id=host_id) }}" class="btn btn-info">
-                <i class="fas fa-hdd"></i> Storage Management
+            <a href="{{ url_for('storage_list', host_id=host_id) }}" class="btn btn-primary">
+                <i class="fas fa-hdd"></i> Storage
             </a>
-            <a href="{{ url_for('backup_list', host_id=host_id) }}" class="btn btn-success">
-                <i class="fas fa-archive"></i> Backup & Restore
+            <a href="{{ url_for('backup_list', host_id=host_id) }}" class="btn btn-info">
+                <i class="fas fa-archive"></i> Backups
+            </a>
+            <a href="{{ url_for('user_management', host_id=host_id) }}" class="btn btn-success">
+                <i class="fas fa-users"></i> Users
             </a>
         </div>
     </div>
