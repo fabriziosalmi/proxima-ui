@@ -82,7 +82,9 @@ def timestamp_to_date(timestamp):
 
 @app.route('/')
 def index():
-    return render_template('index.html', hosts=proxmox_connections)
+    # Add current datetime for the dashboard
+    now = datetime.datetime.now()
+    return render_template('index.html', hosts=proxmox_connections, now=now)
 
 @app.route('/add_host', methods=['GET', 'POST'])
 def add_host():

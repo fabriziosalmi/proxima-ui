@@ -3,45 +3,128 @@
 {% block title %}Proxmox UI - Dashboard{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-4 align-items-center">
     <div class="col">
-        <h1>Proxmox Hosts</h1>
+        <h2 class="page-title"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
+        <p class="text-muted">Manage your Proxmox VE infrastructure</p>
     </div>
     <div class="col-auto">
         <a href="{{ url_for('add_host') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add Host
+            <i class="fas fa-plus me-1"></i> Add Host
         </a>
     </div>
 </div>
 
 {% if hosts %}
+    <!-- Host Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Total Hosts</h6>
+                            <h2 class="mt-2 mb-0">{{ hosts|length }}</h2>
+                        </div>
+                        <div>
+                            <i class="fas fa-server fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Active Connections</h6>
+                            <h2 class="mt-2 mb-0">{{ hosts|length }}</h2>
+                        </div>
+                        <div>
+                            <i class="fas fa-plug fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Last Updated</h6>
+                            <h5 class="mt-2 mb-0">{{ now.strftime('%Y-%m-%d %H:%M') }}</h5>
+                        </div>
+                        <div>
+                            <i class="fas fa-clock fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Host Cards -->
+    <h4 class="mb-3"><i class="fas fa-server me-2"></i>Your Proxmox Hosts</h4>
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         {% for host_id, host_info in hosts.items() %}
         <div class="col">
-            <div class="card h-100">
-                <div class="card-header">
+            <div class="card h-100 hover-shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-server"></i> 
-                        {{ host_info.host }}:{{ host_info.port }}
+                        <i class="fas fa-server text-primary me-2"></i> 
+                        {{ host_info.host }}
                     </h5>
+                    <span class="badge bg-primary">{{ host_info.port }}</span>
                 </div>
                 <div class="card-body">
-                    <p><strong>Username:</strong> {{ host_info.user }}</p>
-                    <p><strong>SSL Verification:</strong> 
-                        {% if host_info.verify_ssl %}
-                            <span class="badge bg-success">Enabled</span>
-                        {% else %}
-                            <span class="badge bg-warning">Disabled</span>
-                        {% endif %}
-                    </p>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="fas fa-user me-2"></i>Username:</span>
+                            <span class="badge bg-secondary">{{ host_info.user }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span><i class="fas fa-lock me-2"></i>SSL Verification:</span>
+                            {% if host_info.verify_ssl %}
+                                <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-warning">Disabled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm w-100 mb-2" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#hostActions{{ loop.index }}" aria-expanded="false">
+                            <i class="fas fa-cogs me-1"></i> Host Actions
+                        </button>
+                        
+                        <div class="collapse mt-2" id="hostActions{{ loop.index }}">
+                            <div class="d-flex flex-column">
+                                <a href="{{ url_for('storage_list', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary mb-1">
+                                    <i class="fas fa-hdd me-1"></i> Storage
+                                </a>
+                                <a href="{{ url_for('backup_list', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary mb-1">
+                                    <i class="fas fa-save me-1"></i> Backups
+                                </a>
+                                <a href="{{ url_for('user_management', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary mb-1">
+                                    <i class="fas fa-users me-1"></i> Users
+                                </a>
+                                <a href="{{ url_for('cluster_firewall', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-shield-alt me-1"></i> Firewall
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
-                    <a href="{{ url_for('host_details', host_id=host_id) }}" class="btn btn-info btn-sm">
-                        <i class="fas fa-info-circle"></i> Details
+                    <a href="{{ url_for('host_details', host_id=host_id) }}" class="btn btn-primary">
+                        <i class="fas fa-info-circle me-1"></i> Details
                     </a>
-                    <a href="{{ url_for('remove_host', host_id=host_id) }}" class="btn btn-danger btn-sm" 
-                       onclick="return confirm('Are you sure you want to remove this host?');">
-                        <i class="fas fa-trash"></i> Remove
+                    <a href="{{ url_for('remove_host', host_id=host_id) }}" class="btn btn-outline-danger" 
+                       data-confirm-action="Are you sure you want to remove this host?">
+                        <i class="fas fa-trash me-1"></i> Remove
                     </a>
                 </div>
             </div>
@@ -49,9 +132,83 @@
         {% endfor %}
     </div>
 {% else %}
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle"></i> No Proxmox hosts configured. 
-        <a href="{{ url_for('add_host') }}">Add a host</a> to get started.
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card text-center p-5">
+                <div class="mb-4">
+                    <i class="fas fa-server fa-5x text-muted"></i>
+                </div>
+                <h3 class="mb-3">No Proxmox hosts configured</h3>
+                <p class="text-muted mb-4">Add your first Proxmox host to get started managing your virtualization environment.</p>
+                <div>
+                    <a href="{{ url_for('add_host') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus me-2"></i> Add Your First Host
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 {% endif %}
+
+<!-- Quick Tips Section -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Quick Tips</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="fas fa-shield-alt fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <h6>Security First</h6>
+                                <p class="text-muted small">Consider using API tokens instead of passwords for enhanced security.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="fas fa-tachometer-alt fa-2x text-success"></i>
+                            </div>
+                            <div>
+                                <h6>Monitor Resources</h6>
+                                <p class="text-muted small">Keep an eye on CPU, memory, and storage metrics to prevent overprovisioning.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="fas fa-save fa-2x text-warning"></i>
+                            </div>
+                            <div>
+                                <h6>Regular Backups</h6>
+                                <p class="text-muted small">Schedule regular backups of your critical VMs and containers.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add current date for "Last Updated" card
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const dateString = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+        const lastUpdatedElem = document.querySelector('.last-updated');
+        if (lastUpdatedElem) {
+            lastUpdatedElem.textContent = dateString;
+        }
+    });
+</script>
 {% endblock %}
