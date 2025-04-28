@@ -700,5 +700,207 @@ def restore_backup(host_id):
     
     return redirect(url_for('backup_list', host_id=host_id))
 
+@app.route('/node/<host_id>/<node>/create_vm', methods=['GET', 'POST'])
+def create_vm(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get available storage pools for this node
+        storages = connection.nodes(node).storage.get()
+        
+        # Filter storages that can contain disk images
+        vm_storages = [storage for storage in storages if 'images' in storage.get('content', '').split(',')]
+        
+        # Get ISO storages and images
+        iso_storages = [storage for storage in storages if 'iso' in storage.get('content', '').split(',')]
+        iso_images = []
+        
+        for storage in iso_storages:
+            try:
+                content = connection.nodes(node).storage(storage['storage']).content.get()
+                iso_list = [item for item in content if item.get('content') == 'iso']
+                for iso in iso_list:
+                    iso['storage'] = storage['storage']
+                iso_images.extend(iso_list)
+            except Exception as e:
+                print(f"Error getting ISO list from {storage['storage']}: {str(e)}")
+        
+        # Get node CPU and memory info for resource allocation
+        node_status = connection.nodes(node).status.get()
+        
+        # Get next available VMID
+        try:
+            next_vmid = connection.cluster.nextid.get()
+        except Exception:
+            # Fallback if cluster API not available
+            vms = connection.nodes(node).qemu.get()
+            containers = connection.nodes(node).lxc.get()
+            existing_ids = [int(vm['vmid']) for vm in vms + containers]
+            next_vmid = max(existing_ids) + 1 if existing_ids else 100
+        
+        if request.method == 'POST':
+            # Process VM creation form
+            vmid = request.form.get('vmid', next_vmid)
+            name = request.form.get('name')
+            cores = request.form.get('cores', 1)
+            memory = request.form.get('memory', 512)
+            storage_name = request.form.get('storage')
+            disk_size = request.form.get('disk_size', 8)
+            
+            # Installation method & related params
+            install_method = request.form.get('install_method')
+            iso_storage = request.form.get('iso_storage', '')
+            iso_file = request.form.get('iso_file', '')
+            
+            # Network settings
+            net0 = request.form.get('net0', 'virtio,bridge=vmbr0')
+            
+            # Build parameters for VM creation
+            params = {
+                'vmid': vmid,
+                'name': name,
+                'cores': cores,
+                'memory': memory,
+                'net0': net0,
+                'ostype': request.form.get('ostype', 'l26'),
+                'scsihw': request.form.get('scsihw', 'virtio-scsi-pci')
+            }
+            
+            # Add storage parameters
+            if storage_name and disk_size:
+                params[f'virtio0'] = f"{storage_name}:{disk_size}"
+            
+            # Add ISO if selected
+            if install_method == 'iso' and iso_storage and iso_file:
+                params['ide2'] = f"{iso_storage}:iso/{iso_file},media=cdrom"
+                params['boot'] = 'order=ide2;virtio0'
+            
+            try:
+                # Create the VM
+                connection.nodes(node).qemu.post(**params)
+                
+                flash(f"VM {name} (ID: {vmid}) created successfully", 'success')
+                return redirect(url_for('node_details', host_id=host_id, node=node))
+            except Exception as e:
+                flash(f"Failed to create VM: {str(e)}", 'danger')
+        
+        return render_template('create_vm.html', 
+                               host_id=host_id,
+                               node=node,
+                               vm_storages=vm_storages,
+                               iso_storages=iso_storages,
+                               iso_images=iso_images,
+                               node_status=node_status,
+                               next_vmid=next_vmid)
+    except Exception as e:
+        flash(f"Failed to get node details: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
+@app.route('/node/<host_id>/<node>/create_container', methods=['GET', 'POST'])
+def create_container(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get available storage pools for this node
+        storages = connection.nodes(node).storage.get()
+        
+        # Filter storages that can contain container templates
+        container_storages = [storage for storage in storages if 'rootdir' in storage.get('content', '').split(',')]
+        
+        # Get template storages and templates
+        template_storages = [storage for storage in storages if 'vztmpl' in storage.get('content', '').split(',')]
+        templates = []
+        
+        for storage in template_storages:
+            try:
+                content = connection.nodes(node).storage(storage['storage']).content.get()
+                template_list = [item for item in content if item.get('content') == 'vztmpl']
+                for tmpl in template_list:
+                    tmpl['storage'] = storage['storage']
+                templates.extend(template_list)
+            except Exception as e:
+                print(f"Error getting template list from {storage['storage']}: {str(e)}")
+        
+        # Get node CPU and memory info for resource allocation
+        node_status = connection.nodes(node).status.get()
+        
+        # Get next available VMID
+        try:
+            next_vmid = connection.cluster.nextid.get()
+        except Exception:
+            # Fallback if cluster API not available
+            vms = connection.nodes(node).qemu.get()
+            containers = connection.nodes(node).lxc.get()
+            existing_ids = [int(vm['vmid']) for vm in vms + containers]
+            next_vmid = max(existing_ids) + 1 if existing_ids else 100
+        
+        if request.method == 'POST':
+            # Process container creation form
+            vmid = request.form.get('vmid', next_vmid)
+            hostname = request.form.get('hostname')
+            cores = request.form.get('cores', 1)
+            memory = request.form.get('memory', 512)
+            storage_name = request.form.get('storage')
+            disk_size = request.form.get('disk_size', 8)
+            
+            # Template & related params
+            ostemplate = request.form.get('ostemplate')
+            password = request.form.get('password')
+            
+            # Network settings
+            net0 = request.form.get('net0', 'name=eth0,bridge=vmbr0,ip=dhcp')
+            
+            # Build parameters for container creation
+            params = {
+                'vmid': vmid,
+                'hostname': hostname,
+                'cores': cores,
+                'memory': memory,
+                'net0': net0,
+                'ostemplate': ostemplate,
+                'password': password
+            }
+            
+            # Add storage parameters
+            if storage_name and disk_size:
+                params['rootfs'] = f"{storage_name}:{disk_size}"
+            
+            # Add optional DNS settings
+            nameserver = request.form.get('nameserver')
+            if nameserver:
+                params['nameserver'] = nameserver
+                
+            # Add optional start on boot
+            start_after_create = request.form.get('start') == 'on'
+            params['start'] = 1 if start_after_create else 0
+            
+            try:
+                # Create the container
+                connection.nodes(node).lxc.post(**params)
+                
+                flash(f"Container {hostname} (ID: {vmid}) created successfully", 'success')
+                return redirect(url_for('node_details', host_id=host_id, node=node))
+            except Exception as e:
+                flash(f"Failed to create container: {str(e)}", 'danger')
+        
+        return render_template('create_container.html', 
+                               host_id=host_id,
+                               node=node,
+                               container_storages=container_storages,
+                               templates=templates,
+                               node_status=node_status,
+                               next_vmid=next_vmid)
+    except Exception as e:
+        flash(f"Failed to get node details: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

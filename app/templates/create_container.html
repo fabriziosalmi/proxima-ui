@@ -12,81 +12,154 @@
     </ol>
 </nav>
 
-<div class="card">
-    <div class="card-header">
-        <h3><i class="fas fa-box"></i> Create New Container</h3>
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-plus"></i> Create Container (LXC)</h1>
     </div>
+</div>
+
+<div class="card">
     <div class="card-body">
-        <form method="post">
+        <form id="createContainerForm" action="{{ url_for('create_container', host_id=host_id, node=node) }}" method="post">
             <div class="row">
                 <div class="col-md-6">
+                    <h4 class="mb-3">General Settings</h4>
+                    
                     <div class="mb-3">
                         <label for="vmid" class="form-label">Container ID</label>
-                        <input type="number" class="form-control" id="vmid" name="vmid" value="{{ next_id }}" required>
-                        <div class="form-text">A unique numeric ID for this container</div>
+                        <input type="number" class="form-control" id="vmid" name="vmid" value="{{ next_vmid }}" required>
+                        <div class="form-text">Unique identifier for the container.</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="hostname" class="form-label">Hostname</label>
-                        <input type="text" class="form-control" id="hostname" name="hostname" required>
-                        <div class="form-text">Hostname for the container</div>
+                        <input type="text" class="form-control" id="hostname" name="hostname" placeholder="e.g., web-server" required>
+                        <div class="form-text">The hostname for this container.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="ostemplate" class="form-label">OS Template</label>
+                        <select class="form-select" id="ostemplate" name="ostemplate" required>
+                            <option value="">Select template</option>
+                            {% for template in templates %}
+                                <option value="{{ template.volid }}">{{ template.volid.split(':')[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            Template to use for container creation.
+                            {% if not templates %}
+                            <br><span class="text-danger">No templates available. You need to download templates first.</span>
+                            {% endif %}
+                        </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="password" class="form-label">Root Password</label>
                         <input type="password" class="form-control" id="password" name="password" required>
-                        <div class="form-text">Root password for the container</div>
+                        <div class="form-text">Root password for the container.</div>
+                    </div>
+                    
+                    <h4 class="mb-3 mt-4">System Resources</h4>
+                    
+                    <div class="mb-3">
+                        <label for="cores" class="form-label">CPU Cores</label>
+                        <input type="number" class="form-control" id="cores" name="cores" min="1" value="1" required>
+                        <div class="form-text">
+                            Available: {{ node_status.cpuinfo.cpus }} cores total
+                        </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="memory" class="form-label">Memory (MB)</label>
-                        <input type="number" class="form-control" id="memory" name="memory" value="512" required>
-                        <div class="form-text">Amount of RAM in MB</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="cores" class="form-label">CPU Cores</label>
-                        <input type="number" class="form-control" id="cores" name="cores" value="1" required>
-                        <div class="form-text">Number of CPU cores</div>
+                        <input type="number" class="form-control" id="memory" name="memory" min="128" value="512" step="128" required>
+                        <div class="form-text">
+                            Available: {{ (node_status.memory.free / (1024*1024))|round(0) }} MB free of {{ (node_status.memory.total / (1024*1024))|round(0) }} MB total
+                        </div>
                     </div>
                 </div>
                 
                 <div class="col-md-6">
+                    <h4 class="mb-3">Storage</h4>
+                    
                     <div class="mb-3">
-                        <label for="storage" class="form-label">Storage</label>
+                        <label for="storage" class="form-label">Storage Pool</label>
                         <select class="form-select" id="storage" name="storage" required>
-                            {% for store in storages %}
-                                {% if 'rootdir' in store.content %}
-                                    <option value="{{ store.storage }}">{{ store.storage }} ({{ store.type }})</option>
-                                {% endif %}
+                            <option value="">Select storage pool</option>
+                            {% for storage in container_storages %}
+                                <option value="{{ storage.storage }}">{{ storage.storage }} ({{ storage.type }})</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">Storage pool for the container</div>
+                        <div class="form-text">Storage pool for the container rootfs.</div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="disk_size" class="form-label">Disk Size</label>
-                        <input type="text" class="form-control" id="disk_size" name="disk_size" value="8G" required>
-                        <div class="form-text">Format: [number][unit]. Units: K|M|G|T</div>
+                        <label for="disk_size" class="form-label">Disk Size (GB)</label>
+                        <input type="number" class="form-control" id="disk_size" name="disk_size" min="1" value="8" required>
+                    </div>
+                    
+                    <h4 class="mb-3 mt-4">Network</h4>
+                    
+                    <div class="mb-3">
+                        <label for="net0" class="form-label">Network Interface</label>
+                        <input type="text" class="form-control" id="net0" name="net0" value="name=eth0,bridge=vmbr0,ip=dhcp">
+                        <div class="form-text">
+                            Format: name=interface_name,bridge=bridge_name,ip=ip_address
+                        </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="ostemplate" class="form-label">Template</label>
-                        <select class="form-select" id="ostemplate" name="ostemplate" required>
-                            {% for template in templates %}
-                                <option value="{{ template.volid }}">{{ template.volid.split('/')[1] }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">Template to use for this container</div>
+                        <label for="nameserver" class="form-label">DNS Servers (Optional)</label>
+                        <input type="text" class="form-control" id="nameserver" name="nameserver" placeholder="e.g., 8.8.8.8 8.8.4.4">
+                        <div class="form-text">
+                            Space-separated list of DNS servers.
+                        </div>
+                    </div>
+                    
+                    <h4 class="mb-3 mt-4">Options</h4>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="start" name="start" checked>
+                        <label class="form-check-label" for="start">Start container after creation</label>
                     </div>
                 </div>
             </div>
             
-            <div class="mb-3">
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="btn btn-secondary me-md-2">Cancel</a>
                 <button type="submit" class="btn btn-primary">Create Container</button>
-                <a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Show template description if available
+        $('#ostemplate').change(function() {
+            // This could be enhanced to display template details if available
+        });
+        
+        // Simplify IP configuration with preset options
+        const ipConfigPresets = {
+            'dhcp': 'name=eth0,bridge=vmbr0,ip=dhcp',
+            'static': 'name=eth0,bridge=vmbr0,ip=192.168.1.100/24,gw=192.168.1.1'
+        };
+        
+        // Add network configuration presets if needed
+        
+        // Form validation
+        $('#createContainerForm').submit(function(event) {
+            const ostemplate = $('#ostemplate').val();
+            if(!ostemplate) {
+                alert('Please select an OS template.');
+                event.preventDefault();
+                return false;
+            }
+            
+            return true;
+        });
+    });
+</script>
 {% endblock %}
