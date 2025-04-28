@@ -312,6 +312,104 @@ def delete_vm_snapshot(host_id, node, vmid, snapname):
     
     return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
 
+@app.route('/container/<host_id>/<node>/<vmid>/snapshots')
+def container_snapshots(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get container info for name
+        container_info = connection.nodes(node).lxc(vmid).status.current.get()
+        
+        # Get snapshots
+        snapshots = connection.nodes(node).lxc(vmid).snapshot.get()
+        
+        # Convert timestamps to human-readable format
+        for snapshot in snapshots:
+            if 'snaptime' in snapshot:
+                try:
+                    timestamp = int(snapshot['snaptime'])
+                    snapshot['snaptime'] = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                except (ValueError, TypeError):
+                    pass
+        
+        return render_template('container_snapshots.html',
+                            host_id=host_id,
+                            node=node,
+                            vmid=vmid,
+                            container_name=container_info.get('name', f'Container {vmid}'),
+                            snapshots=snapshots)
+    except Exception as e:
+        flash(f"Failed to get container snapshots: {str(e)}", 'danger')
+        return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/snapshots/create', methods=['POST'])
+def create_container_snapshot(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    
+    if not name:
+        flash("Snapshot name is required", 'danger')
+        return redirect(url_for('container_snapshots', host_id=host_id, node=node, vmid=vmid))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Create snapshot
+        connection.nodes(node).lxc(vmid).snapshot.post(
+            snapname=name,
+            description=description
+        )
+        
+        flash(f"Snapshot '{name}' created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create snapshot: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_snapshots', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/snapshots/<snapname>/restore', methods=['POST'])
+def restore_container_snapshot(host_id, node, vmid, snapname):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Restore snapshot
+        connection.nodes(node).lxc(vmid).snapshot(snapname).rollback.post()
+        
+        flash(f"Snapshot '{snapname}' restored successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to restore snapshot: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_snapshots', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/container/<host_id>/<node>/<vmid>/snapshots/<snapname>/delete', methods=['POST'])
+def delete_container_snapshot(host_id, node, vmid, snapname):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete snapshot
+        connection.nodes(node).lxc(vmid).snapshot(snapname).delete()
+        
+        flash(f"Snapshot '{snapname}' deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete snapshot: {str(e)}", 'danger')
+    
+    return redirect(url_for('container_snapshots', host_id=host_id, node=node, vmid=vmid))
+
 @app.route('/api/vm/action', methods=['POST'])
 def vm_action():
     host_id = request.form.get('host_id')
@@ -1318,6 +1416,142 @@ def add_permission(host_id):
         flash(f"Failed to add permission: {str(e)}", 'danger')
     
     return redirect(url_for('user_management', host_id=host_id))
+
+@app.route('/host/<host_id>/<node>/templates')
+def template_management(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get available storage pools for this node
+        storages = connection.nodes(node).storage.get()
+        
+        # Filter storages that can contain templates (vztmpl) and ISO images
+        template_storages = [storage for storage in storages if 'vztmpl' in storage.get('content', '').split(',')]
+        iso_storages = [storage for storage in storages if 'iso' in storage.get('content', '').split(',')]
+        
+        # Get existing templates
+        templates = []
+        for storage in template_storages:
+            try:
+                content = connection.nodes(node).storage(storage['storage']).content.get()
+                template_list = [item for item in content if item.get('content') == 'vztmpl']
+                for tmpl in template_list:
+                    tmpl['storage'] = storage['storage']
+                templates.extend(template_list)
+            except Exception as e:
+                print(f"Error getting template list from {storage['storage']}: {str(e)}")
+        
+        # Get existing ISO images
+        iso_images = []
+        for storage in iso_storages:
+            try:
+                content = connection.nodes(node).storage(storage['storage']).content.get()
+                iso_list = [item for item in content if item.get('content') == 'iso']
+                for iso in iso_list:
+                    iso['storage'] = storage['storage']
+                iso_images.extend(iso_list)
+            except Exception as e:
+                print(f"Error getting ISO list from {storage['storage']}: {str(e)}")
+                
+        return render_template('template_management.html',
+                            host_id=host_id,
+                            node=node,
+                            template_storages=template_storages,
+                            iso_storages=iso_storages,
+                            templates=templates,
+                            iso_images=iso_images)
+    except Exception as e:
+        flash(f"Failed to get template information: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
+@app.route('/host/<host_id>/<node>/templates/download_container_template', methods=['POST'])
+def download_container_template(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    storage = request.form.get('storage')
+    template_url = request.form.get('template_url')
+    
+    if not storage or not template_url:
+        flash("Storage and template URL are required", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Start template download
+        task = connection.nodes(node).storage(storage).content.post(
+            content='vztmpl',
+            filename=os.path.basename(template_url),
+            url=template_url
+        )
+        
+        flash(f"Started download of container template: {os.path.basename(template_url)}", 'success')
+    except Exception as e:
+        flash(f"Failed to download template: {str(e)}", 'danger')
+    
+    return redirect(url_for('template_management', host_id=host_id, node=node))
+
+@app.route('/host/<host_id>/<node>/templates/download_iso', methods=['POST'])
+def download_iso(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    storage = request.form.get('storage')
+    iso_url = request.form.get('iso_url')
+    
+    if not storage or not iso_url:
+        flash("Storage and ISO URL are required", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Start ISO download
+        task = connection.nodes(node).storage(storage).content.post(
+            content='iso',
+            filename=os.path.basename(iso_url),
+            url=iso_url
+        )
+        
+        flash(f"Started download of ISO image: {os.path.basename(iso_url)}", 'success')
+    except Exception as e:
+        flash(f"Failed to download ISO: {str(e)}", 'danger')
+    
+    return redirect(url_for('template_management', host_id=host_id, node=node))
+
+@app.route('/host/<host_id>/<node>/templates/delete', methods=['POST'])
+def delete_template(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    storage = request.form.get('storage')
+    volume = request.form.get('volume')
+    content_type = request.form.get('content_type')
+    
+    if not storage or not volume or not content_type:
+        flash("Storage, volume, and content type are required", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the template/ISO
+        connection.nodes(node).storage(storage).content(volume).delete()
+        
+        content_name = "container template" if content_type == 'vztmpl' else "ISO image"
+        flash(f"Deleted {content_name}: {os.path.basename(volume)}", 'success')
+    except Exception as e:
+        flash(f"Failed to delete: {str(e)}", 'danger')
+    
+    return redirect(url_for('template_management', host_id=host_id, node=node))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Container Snapshots{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=vmid) }}">Container {{ vmid }}</a></li>
+        <li class="breadcrumb-item active">Snapshots</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-camera"></i> Snapshots: {{ container_name }}</h1>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Create New Snapshot</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('create_container_snapshot', host_id=host_id, node=node, vmid=vmid) }}" method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Snapshot Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required 
+                            placeholder="e.g., backup-20250427">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="description" name="description" 
+                            placeholder="e.g., Before software update">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Snapshot</button>
+        </form>
+    </div>
+    <div class="card-footer text-muted">
+        <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Creating a snapshot may temporarily pause the container.</small>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Snapshot List</h5>
+    </div>
+    <div class="card-body">
+        {% if snapshots %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for snapshot in snapshots %}
+                            {% if snapshot.name != "current" %}
+                                <tr>
+                                    <td>{{ snapshot.name }}</td>
+                                    <td>{{ snapshot.description }}</td>
+                                    <td>{{ snapshot.snaptime | default('Unknown') }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <form action="{{ url_for('restore_container_snapshot', host_id=host_id, node=node, vmid=vmid, snapname=snapshot.name) }}" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Are you sure you want to restore this snapshot? All changes after this snapshot will be lost.');">
+                                                    <i class="fas fa-undo"></i> Restore
+                                                </button>
+                                            </form>
+                                            
+                                            <form action="{{ url_for('delete_container_snapshot', host_id=host_id, node=node, vmid=vmid, snapname=snapshot.name) }}" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this snapshot?');">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No snapshots found for this container.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

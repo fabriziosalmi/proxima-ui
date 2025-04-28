@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Template Management{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item active">Templates</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-box-open"></i> Template Management</h1>
+    </div>
+</div>
+
+<!-- Container Templates Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Container Templates</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <form action="{{ url_for('download_container_template', host_id=host_id, node=node) }}" method="post" class="row g-3">
+                    <div class="col-md-5">
+                        <label for="template_url" class="form-label">Template URL</label>
+                        <input type="url" class="form-control" id="template_url" name="template_url" 
+                               placeholder="e.g., http://download.proxmox.com/images/system/ubuntu-22.04-standard_22.04-1_amd64.tar.gz" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="storage" class="form-label">Storage</label>
+                        <select class="form-select" id="storage" name="storage" required>
+                            <option value="">Select storage</option>
+                            {% for storage in template_storages %}
+                                <option value="{{ storage.storage }}">{{ storage.storage }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Download Template</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <h6>Common Templates:</h6>
+                <div class="d-flex flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary m-1 template-shortcut" 
+                            data-url="http://download.proxmox.com/images/system/ubuntu-22.04-standard_22.04-1_amd64.tar.gz">
+                        Ubuntu 22.04
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary m-1 template-shortcut" 
+                            data-url="http://download.proxmox.com/images/system/debian-11-standard_11.7-1_amd64.tar.zst">
+                        Debian 11
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary m-1 template-shortcut" 
+                            data-url="http://download.proxmox.com/images/system/centos-8-default_20210429_amd64.tar.xz">
+                        CentOS 8
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary m-1 template-shortcut" 
+                            data-url="http://download.proxmox.com/images/system/fedora-37-default_20221209_amd64.tar.xz">
+                        Fedora 37
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary m-1 template-shortcut" 
+                            data-url="http://download.proxmox.com/images/system/alpine-3.17-default_20221129_amd64.tar.xz">
+                        Alpine 3.17
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <hr class="my-4">
+        
+        <div class="row">
+            <div class="col-md-12">
+                <h5>Available Container Templates</h5>
+                {% if templates %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Template</th>
+                                    <th>Storage</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for template in templates %}
+                                    <tr>
+                                        <td>{{ template.volid.split(':')[1] }}</td>
+                                        <td>{{ template.storage }}</td>
+                                        <td>{{ (template.size / (1024*1024))|round(1) }} MB</td>
+                                        <td>
+                                            <form action="{{ url_for('delete_template', host_id=host_id, node=node) }}" method="post" class="d-inline">
+                                                <input type="hidden" name="storage" value="{{ template.storage }}">
+                                                <input type="hidden" name="volume" value="{{ template.volid.split(':')[1] }}">
+                                                <input type="hidden" name="content_type" value="vztmpl">
+                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this template?');">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">No container templates available. Download templates using the form above.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ISO Images Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>ISO Images</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <form action="{{ url_for('download_iso', host_id=host_id, node=node) }}" method="post" class="row g-3">
+                    <div class="col-md-5">
+                        <label for="iso_url" class="form-label">ISO URL</label>
+                        <input type="url" class="form-control" id="iso_url" name="iso_url" 
+                               placeholder="e.g., https://releases.ubuntu.com/22.04/ubuntu-22.04.3-live-server-amd64.iso" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="iso_storage" class="form-label">Storage</label>
+                        <select class="form-select" id="iso_storage" name="storage" required>
+                            <option value="">Select storage</option>
+                            {% for storage in iso_storages %}
+                                <option value="{{ storage.storage }}">{{ storage.storage }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Download ISO</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <h6>Common ISOs:</h6>
+                <div class="d-flex flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary m-1 iso-shortcut" 
+                            data-url="https://releases.ubuntu.com/22.04/ubuntu-22.04.3-live-server-amd64.iso">
+                        Ubuntu 22.04 Server
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary m-1 iso-shortcut" 
+                            data-url="https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.7.0-amd64-netinst.iso">
+                        Debian 11 NetInst
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary m-1 iso-shortcut" 
+                            data-url="https://download.fedoraproject.org/pub/fedora/linux/releases/37/Server/x86_64/iso/Fedora-Server-dvd-x86_64-37-1.7.iso">
+                        Fedora 37 Server
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary m-1 iso-shortcut" 
+                            data-url="https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-standard-3.17.0-x86_64.iso">
+                        Alpine 3.17
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <hr class="my-4">
+        
+        <div class="row">
+            <div class="col-md-12">
+                <h5>Available ISO Images</h5>
+                {% if iso_images %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ISO Image</th>
+                                    <th>Storage</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for iso in iso_images %}
+                                    <tr>
+                                        <td>{{ iso.volid.split(':')[1] }}</td>
+                                        <td>{{ iso.storage }}</td>
+                                        <td>{{ (iso.size / (1024*1024))|round(1) }} MB</td>
+                                        <td>
+                                            <form action="{{ url_for('delete_template', host_id=host_id, node=node) }}" method="post" class="d-inline">
+                                                <input type="hidden" name="storage" value="{{ iso.storage }}">
+                                                <input type="hidden" name="volume" value="{{ iso.volid.split(':')[1] }}">
+                                                <input type="hidden" name="content_type" value="iso">
+                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this ISO?');">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">No ISO images available. Download ISO images using the form above.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Container template shortcut buttons
+        $('.template-shortcut').click(function() {
+            $('#template_url').val($(this).data('url'));
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        // ISO shortcut buttons
+        $('.iso-shortcut').click(function() {
+            $('#iso_url').val($(this).data('url'));
+            window.scrollTo({ top: $('#iso_url').offset().top - 100, behavior: 'smooth' });
+        });
+    });
+</script>
+{% endblock %}
