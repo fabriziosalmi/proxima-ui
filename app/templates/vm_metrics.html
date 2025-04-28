@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Resource Metrics{% endblock %}
+
+{% block styles %}
+<style>
+    .chart-container {
+        height: 300px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        {% if vm_type == 'qemu' %}
+            <li class="breadcrumb-item"><a href="{{ url_for('vm_details', host_id=host_id, node=node, vmid=vmid) }}">VM {{ vmid }}</a></li>
+        {% else %}
+            <li class="breadcrumb-item"><a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=vmid) }}">Container {{ vmid }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">Metrics</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-chart-line"></i> {{ resource_name }} Performance Metrics</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Chart Controls</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="timeframeSelect" class="form-label">Timeframe</label>
+                            <select class="form-select" id="timeframeSelect">
+                                <option value="hour" {% if timeframe == 'hour' %}selected{% endif %}>Last Hour</option>
+                                <option value="day" {% if timeframe == 'day' %}selected{% endif %}>Last Day</option>
+                                <option value="week" {% if timeframe == 'week' %}selected{% endif %}>Last Week</option>
+                                <option value="month" {% if timeframe == 'month' %}selected{% endif %}>Last Month</option>
+                                <option value="year" {% if timeframe == 'year' %}selected{% endif %}>Last Year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="refreshInterval" class="form-label">Auto-Refresh Interval</label>
+                            <select class="form-select" id="refreshInterval">
+                                <option value="0">Disabled</option>
+                                <option value="5000">5 seconds</option>
+                                <option value="10000">10 seconds</option>
+                                <option value="30000" selected>30 seconds</option>
+                                <option value="60000">1 minute</option>
+                                <option value="300000">5 minutes</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button class="btn btn-primary" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Legend</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>CPU Usage:</strong> CPU utilization percentage</p>
+                <p><strong>Memory Usage:</strong> RAM utilization percentage</p>
+                <p><strong>Disk I/O:</strong> Disk read/write operations in MB/s</p>
+                <p><strong>Network:</strong> Network traffic in MB/s</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Data is collected from RRD datasets stored on Proxmox. 
+                    Higher resolution is available for more recent data.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>CPU Usage</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="cpuChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Memory Usage</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="memoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Disk I/O</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="diskIOChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Network Traffic</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="networkChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Chart configuration
+    const timeLabels = {{ times|safe }};
+    const cpuData = {{ cpu_data|safe }};
+    const memoryData = {{ memory_data|safe }};
+    const diskIOData = {{ disk_io_data|safe }};
+    const networkData = {{ network_data|safe }};
+    
+    // Process disk IO data
+    const diskReadData = [];
+    const diskWriteData = [];
+    
+    diskIOData.forEach(item => {
+        diskReadData.push(item.read);
+        diskWriteData.push(item.write);
+    });
+    
+    // Process network data
+    const netInData = [];
+    const netOutData = [];
+    
+    networkData.forEach(item => {
+        netInData.push(item.in);
+        netOutData.push(item.out);
+    });
+    
+    // CPU Chart
+    const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+    const cpuChart = new Chart(cpuCtx, {
+        type: 'line',
+        data: {
+            labels: timeLabels,
+            datasets: [{
+                label: 'CPU Usage (%)',
+                data: cpuData,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'CPU Usage (%)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Memory Chart
+    const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+    const memoryChart = new Chart(memoryCtx, {
+        type: 'line',
+        data: {
+            labels: timeLabels,
+            datasets: [{
+                label: 'Memory Usage (%)',
+                data: memoryData,
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Memory Usage (%)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Disk I/O Chart
+    const diskIOCtx = document.getElementById('diskIOChart').getContext('2d');
+    const diskIOChart = new Chart(diskIOCtx, {
+        type: 'line',
+        data: {
+            labels: timeLabels,
+            datasets: [{
+                label: 'Disk Read (MB/s)',
+                data: diskReadData,
+                borderColor: 'rgb(255, 159, 64)',
+                backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                tension: 0.1,
+                fill: false
+            },
+            {
+                label: 'Disk Write (MB/s)',
+                data: diskWriteData,
+                borderColor: 'rgb(255, 205, 86)',
+                backgroundColor: 'rgba(255, 205, 86, 0.2)',
+                tension: 0.1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Disk I/O (MB/s)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Network Chart
+    const networkCtx = document.getElementById('networkChart').getContext('2d');
+    const networkChart = new Chart(networkCtx, {
+        type: 'line',
+        data: {
+            labels: timeLabels,
+            datasets: [{
+                label: 'Network IN (MB/s)',
+                data: netInData,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: false
+            },
+            {
+                label: 'Network OUT (MB/s)',
+                data: netOutData,
+                borderColor: 'rgb(153, 102, 255)',
+                backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                tension: 0.1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Network Traffic (MB/s)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Refresh data
+    function refreshData() {
+        const timeframe = document.getElementById('timeframeSelect').value;
+        window.location.href = `{{ url_for('vm_metrics', host_id=host_id, node=node, vmid=vmid) }}?timeframe=${timeframe}`;
+    }
+    
+    // Event listeners
+    document.getElementById('refreshBtn').addEventListener('click', refreshData);
+    document.getElementById('timeframeSelect').addEventListener('change', refreshData);
+    
+    // Auto-refresh handler
+    let refreshTimer;
+    
+    function setAutoRefresh() {
+        clearInterval(refreshTimer);
+        const interval = parseInt(document.getElementById('refreshInterval').value);
+        if (interval > 0) {
+            refreshTimer = setInterval(refreshData, interval);
+        }
+    }
+    
+    document.getElementById('refreshInterval').addEventListener('change', setAutoRefresh);
+    
+    // Initialize auto-refresh
+    setAutoRefresh();
+</script>
+{% endblock %}

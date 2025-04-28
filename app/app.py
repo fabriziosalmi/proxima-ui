@@ -2354,6 +2354,75 @@ def delete_template(host_id, node):
     
     return redirect(url_for('template_management', host_id=host_id, node=node))
 
+@app.route('/host/<host_id>/<node>/templates/export_template', methods=['POST'])
+def export_template(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    storage = request.form.get('storage')
+    volume = request.form.get('volume')
+    if not storage or not volume:
+        flash("Storage and volume are required", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get download URL for template/iso
+        download_link = connection.nodes(node).storage(storage).content(volume).get_download_url()
+        
+        # Redirect to the download link
+        return redirect(download_link)
+    except Exception as e:
+        flash(f"Failed to export template: {str(e)}", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+
+@app.route('/host/<host_id>/<node>/templates/upload', methods=['POST'])
+def upload_template(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    storage = request.form.get('storage')
+    content_type = request.form.get('content_type')
+    
+    if not storage or not content_type:
+        flash("Storage and content type are required", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    # File must be uploaded directly
+    if 'template_file' not in request.files:
+        flash("No file part", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    file = request.files['template_file']
+    if file.filename == '':
+        flash("No selected file", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get upload URL for the storage
+        upload_url = connection.nodes(node).storage(storage).get_upload_url(content=content_type)
+        
+        # Upload the file to Proxmox
+        response = requests.post(
+            upload_url, 
+            files={"filename": (file.filename, file.read())},
+            verify=False
+        )
+        
+        if response.status_code == 200:
+            flash(f"Template uploaded successfully", 'success')
+        else:
+            flash(f"Failed to upload template: {response.text}", 'danger')
+    except Exception as e:
+        flash(f"Failed to upload template: {str(e)}", 'danger')
+    
+    return redirect(url_for('template_management', host_id=host_id, node=node))
+
 @app.route('/host/<host_id>/cluster')
 def cluster_management(host_id):
     if host_id not in proxmox_connections:
@@ -2920,6 +2989,90 @@ def edit_container_config(host_id, node, vmid):
     except Exception as e:
         flash(f"Failed to edit container configuration: {str(e)}", 'danger')
         return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
+
+@app.route('/node/<host_id>/<node>/<vmid>/metrics')
+def vm_metrics(host_id, node, vmid):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Determine if this is a VM or container
+        try:
+            # First try to get VM info
+            vm_info = connection.nodes(node).qemu(vmid).status.current.get()
+            vm_type = 'qemu'
+            resource_name = vm_info.get('name', f'VM {vmid}')
+        except:
+            try:
+                # If not VM, try container
+                container_info = connection.nodes(node).lxc(vmid).status.current.get()
+                vm_type = 'lxc'
+                resource_name = container_info.get('name', f'Container {vmid}')
+            except:
+                flash("Resource not found", 'danger')
+                return redirect(url_for('node_details', host_id=host_id, node=node))
+        
+        # Get timeframe parameter with default to 'hour'
+        timeframe = request.args.get('timeframe', 'hour')
+        
+        # Get RRD data for the VM
+        if vm_type == 'qemu':
+            rrd_data = connection.nodes(node).qemu(vmid).rrddata.get(timeframe=timeframe)
+        else:
+            rrd_data = connection.nodes(node).lxc(vmid).rrddata.get(timeframe=timeframe)
+        
+        # Process data for charts
+        times = []
+        cpu_data = []
+        memory_data = []
+        disk_io_data = []
+        network_data = []
+        
+        for entry in rrd_data:
+            # Format time for display
+            if 'time' in entry:
+                timestamp = entry['time']
+                times.append(datetime.datetime.fromtimestamp(timestamp).strftime('%H:%M:%S'))
+            
+            # CPU usage (in %)
+            if 'cpu' in entry:
+                cpu_data.append(entry['cpu'] * 100)
+            
+            # Memory usage (in %)
+            if 'mem' in entry and 'maxmem' in entry and entry['maxmem'] > 0:
+                memory_data.append((entry['mem'] / entry['maxmem']) * 100)
+            
+            # Disk I/O
+            disk_read = entry.get('diskread', 0) / (1024*1024)  # Convert to MB/s
+            disk_write = entry.get('diskwrite', 0) / (1024*1024)  # Convert to MB/s
+            disk_io_data.append({'read': disk_read, 'write': disk_write})
+            
+            # Network
+            net_in = entry.get('netin', 0) / (1024*1024)  # Convert to MB/s
+            net_out = entry.get('netout', 0) / (1024*1024)  # Convert to MB/s
+            network_data.append({'in': net_in, 'out': net_out})
+        
+        return render_template('vm_metrics.html',
+                            host_id=host_id,
+                            node=node,
+                            vmid=vmid,
+                            vm_type=vm_type,
+                            resource_name=resource_name,
+                            times=json.dumps(times),
+                            cpu_data=json.dumps(cpu_data),
+                            memory_data=json.dumps(memory_data),
+                            disk_io_data=json.dumps(disk_io_data),
+                            network_data=json.dumps(network_data),
+                            timeframe=timeframe)
+    except Exception as e:
+        flash(f"Failed to get metrics: {str(e)}", 'danger')
+        if vm_type == 'qemu':
+            return redirect(url_for('vm_details', host_id=host_id, node=node, vmid=vmid))
+        else:
+            return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
