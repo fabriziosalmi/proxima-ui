@@ -3074,5 +3074,113 @@ def vm_metrics(host_id, node, vmid):
         else:
             return redirect(url_for('container_details', host_id=host_id, node=node, vmid=vmid))
 
+@app.route('/node/<host_id>/<node>/metrics')
+def node_metrics(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get current node status
+        node_status = connection.nodes(node).status.get()
+        
+        # Get timeframe parameter with default to 'hour'
+        timeframe = request.args.get('timeframe', 'hour')
+        
+        # Get RRD data for the node
+        rrd_data = connection.nodes(node).rrddata.get(timeframe=timeframe)
+        
+        # Process data for charts
+        times = []
+        cpu_data = []
+        memory_data = []
+        swap_data = []
+        disk_data = []
+        disk_io_data = []
+        network_data = []
+        load_data = []
+        
+        for entry in rrd_data:
+            # Format time for display
+            if 'time' in entry:
+                timestamp = entry['time']
+                times.append(datetime.datetime.fromtimestamp(timestamp).strftime('%H:%M:%S'))
+            
+            # CPU usage (in %)
+            if 'cpu' in entry:
+                cpu_data.append(entry['cpu'] * 100)
+            
+            # Memory usage (in %)
+            if 'memtotal' in entry and entry['memtotal'] > 0:
+                memory_percent = (entry.get('memused', 0) / entry['memtotal']) * 100
+                memory_data.append(memory_percent)
+            
+            # Swap usage (in %)
+            if 'swaptotal' in entry and entry['swaptotal'] > 0:
+                swap_percent = (entry.get('swapused', 0) / entry['swaptotal']) * 100
+                swap_data.append(swap_percent)
+            else:
+                swap_data.append(0)  # No swap or no usage
+            
+            # Disk usage (in %)
+            if 'roottotal' in entry and entry['roottotal'] > 0:
+                disk_percent = (entry.get('rootused', 0) / entry['roottotal']) * 100
+                disk_data.append(disk_percent)
+            
+            # Disk I/O
+            disk_read = entry.get('diskread', 0) / (1024*1024)  # Convert to MB/s
+            disk_write = entry.get('diskwrite', 0) / (1024*1024)  # Convert to MB/s
+            disk_io_data.append({'read': disk_read, 'write': disk_write})
+            
+            # Network
+            net_in = entry.get('netin', 0) / (1024*1024)  # Convert to MB/s
+            net_out = entry.get('netout', 0) / (1024*1024)  # Convert to MB/s
+            network_data.append({'in': net_in, 'out': net_out})
+            
+            # Load average
+            if 'loadavg' in entry:
+                load_data.append(entry['loadavg'])
+        
+        # Get detailed storage information
+        storages = connection.nodes(node).storage.get()
+        storage_status = []
+        
+        for storage in storages:
+            try:
+                storage_id = storage.get('storage')
+                if storage_id:
+                    details = connection.nodes(node).storage(storage_id).status.get()
+                    storage_status.append({
+                        'name': storage_id,
+                        'type': storage.get('type', 'unknown'),
+                        'total': details.get('total', 0),
+                        'used': details.get('used', 0),
+                        'avail': details.get('avail', 0),
+                        'percent': (details.get('used', 0) / details.get('total', 1)) * 100 if details.get('total', 0) > 0 else 0
+                    })
+            except Exception:
+                # Skip storages that might not provide status info
+                pass
+        
+        return render_template('node_metrics.html',
+                            host_id=host_id,
+                            node=node,
+                            node_status=node_status,
+                            times=json.dumps(times),
+                            cpu_data=json.dumps(cpu_data),
+                            memory_data=json.dumps(memory_data),
+                            swap_data=json.dumps(swap_data),
+                            disk_data=json.dumps(disk_data),
+                            disk_io_data=json.dumps(disk_io_data),
+                            network_data=json.dumps(network_data),
+                            load_data=json.dumps(load_data),
+                            storage_status=storage_status,
+                            timeframe=timeframe)
+    except Exception as e:
+        flash(f"Failed to get node metrics: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
