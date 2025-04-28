@@ -92,7 +92,15 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ (vm.maxmem / (1024*1024))|round(0) }} MB</td>
-                                    <td>{{ vm.maxcpu }}</td>
+                                    <td>
+                                        {% if vm.cpus is defined %}
+                                            {{ vm.cpus }}
+                                        {% elif vm.maxcpu is defined %}
+                                            {{ vm.maxcpu }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ url_for('vm_details', host_id=host_id, node=node, vmid=vm.vmid) }}" class="btn btn-info btn-sm">
@@ -162,7 +170,15 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ (container.maxmem / (1024*1024))|round(0) }} MB</td>
-                                    <td>{{ container.maxcpu }}</td>
+                                    <td>
+                                        {% if container.cpus is defined %}
+                                            {{ container.cpus }}
+                                        {% elif container.maxcpu is defined %}
+                                            {{ container.maxcpu }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=container.vmid) }}" class="btn btn-info btn-sm">
