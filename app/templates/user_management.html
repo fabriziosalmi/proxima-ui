@@ -195,6 +195,11 @@
                                 </td>
                             </tr>
                             {% endfor %}
+                            {% if roles|length == 0 %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No roles available</td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -256,6 +261,9 @@
                         </tr>
                     </tbody>
                 </table>
+                {% if permissions|length == 0 %}
+                <div class="text-center text-muted mt-4">No permissions available</div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -530,15 +538,31 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
+    // Force tabs to be properly initialized
+    $('#userTabs a').on('click', function (e) {
+        e.preventDefault();
+        $(this).tab('show');
+    });
+    
     // Show the active tab from URL hash, if present
     var hash = window.location.hash;
     if (hash) {
-        $(`#userTabs a[href="${hash}"]`).tab('show');
+        $('#userTabs a[href="' + hash + '"]').tab('show');
     }
     
     // Update URL hash when tab changes
     $('#userTabs a').on('shown.bs.tab', function (e) {
-        window.location.hash = e.target.hash;
+        history.pushState(null, null, e.target.hash);
+    });
+    
+    // Support for browser back/forward buttons
+    window.addEventListener('popstate', function() {
+        var hash = window.location.hash;
+        if (hash) {
+            $('#userTabs a[href="' + hash + '"]').tab('show');
+        } else {
+            $('#userTabs a[href="#users"]').tab('show');
+        }
     });
 
     // Handle Edit User Modal
