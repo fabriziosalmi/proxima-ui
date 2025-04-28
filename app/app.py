@@ -84,7 +84,149 @@ def timestamp_to_date(timestamp):
 def index():
     # Add current datetime for the dashboard
     now = datetime.datetime.now()
-    return render_template('index.html', hosts=proxmox_connections, now=now)
+    
+    # If there are no hosts, just return the empty dashboard
+    if not proxmox_connections:
+        return render_template('index.html', hosts=proxmox_connections, now=now)
+    
+    # Gather statistics for the dashboard
+    stats = {
+        'vms_total': 0,
+        'vms_running': 0,
+        'containers_total': 0,
+        'containers_running': 0,
+        'cpu_health_percent': 0,
+        'memory_health_percent': 0,
+        'storage_health_percent': 0,
+        'nodes': []
+    }
+    
+    # Track total resource metrics for averaging
+    total_cpu_percent = 0
+    total_memory_percent = 0
+    total_storage_percent = 0
+    resource_count = 0
+    
+    # Gather statistics from all hosts
+    for host_id, host_data in proxmox_connections.items():
+        try:
+            connection = host_data['connection']
+            
+            # Get all nodes for this host
+            nodes = connection.nodes.get()
+            
+            # Track host-specific stats
+            host_stats = {
+                'vms_total': 0,
+                'vms_running': 0,
+                'containers_total': 0,
+                'containers_running': 0,
+                'nodes_total': len(nodes),
+                'nodes_online': 0
+            }
+            
+            # Process each node
+            for node_info in nodes:
+                node_name = node_info['node']
+                
+                # Skip offline nodes
+                if node_info['status'] != 'online':
+                    continue
+                
+                host_stats['nodes_online'] += 1
+                
+                try:
+                    # Get node status
+                    node_status = connection.nodes(node_name).status.get()
+                    
+                    # Calculate memory percentage
+                    memory_total = node_status['memory']['total'] / (1024*1024*1024)  # Convert to GB
+                    memory_used = node_status['memory']['used'] / (1024*1024*1024)    # Convert to GB
+                    memory_percent = (node_status['memory']['used'] / node_status['memory']['total']) * 100
+                    
+                    # Get CPU percentage
+                    cpu_percent = node_status['cpu'] * 100
+                    
+                    # Get storage information
+                    storage_info = connection.nodes(node_name).storage.get()
+                    storage_percent = 0
+                    storage_count = 0
+                    
+                    for storage in storage_info:
+                        if 'total' in storage and storage['total'] > 0:
+                            storage_percent += (storage['used'] / storage['total']) * 100
+                            storage_count += 1
+                    
+                    # Average storage percentage for this node
+                    if storage_count > 0:
+                        storage_percent = storage_percent / storage_count
+                    
+                    # Add to total resource metrics
+                    total_cpu_percent += cpu_percent
+                    total_memory_percent += memory_percent
+                    total_storage_percent += storage_percent
+                    resource_count += 1
+                    
+                    # Get VMs on this node
+                    vms = connection.nodes(node_name).qemu.get()
+                    vm_count = len(vms)
+                    vm_running = sum(1 for vm in vms if vm['status'] == 'running')
+                    
+                    # Get containers on this node
+                    containers = connection.nodes(node_name).lxc.get()
+                    container_count = len(containers)
+                    container_running = sum(1 for ct in containers if ct['status'] == 'running')
+                    
+                    # Update host stats
+                    host_stats['vms_total'] += vm_count
+                    host_stats['vms_running'] += vm_running
+                    host_stats['containers_total'] += container_count
+                    host_stats['containers_running'] += container_running
+                    
+                    # Update global stats
+                    stats['vms_total'] += vm_count
+                    stats['vms_running'] += vm_running
+                    stats['containers_total'] += container_count
+                    stats['containers_running'] += container_running
+                    
+                    # Add node details to the stats
+                    stats['nodes'].append({
+                        'host_id': host_id,
+                        'name': node_name,
+                        'status': node_info['status'],
+                        'cpu': cpu_percent,
+                        'memory_used': memory_used,
+                        'memory_total': memory_total,
+                        'memory_percent': memory_percent,
+                        'storage_percent': storage_percent,
+                        'vms_total': vm_count,
+                        'vms_running': vm_running,
+                        'containers_total': container_count,
+                        'containers_running': container_running,
+                        'uptime': node_status.get('uptime', 0)
+                    })
+                    
+                except Exception as e:
+                    print(f"Error getting data for node {node_name} on host {host_id}: {str(e)}")
+                    continue
+            
+            # Add host stats to host_data for display in host cards
+            host_data['status'] = host_stats
+            
+        except Exception as e:
+            print(f"Error processing host {host_id}: {str(e)}")
+            continue
+    
+    # Calculate the average health percentages
+    if resource_count > 0:
+        stats['cpu_health_percent'] = 100 - (total_cpu_percent / resource_count)
+        stats['memory_health_percent'] = 100 - (total_memory_percent / resource_count)
+        stats['storage_health_percent'] = 100 - (total_storage_percent / resource_count)
+    
+    # Sort nodes by status (online first) and then by name
+    stats['nodes'].sort(key=lambda x: (0 if x['status'] == 'online' else 1, x['name']))
+    
+    return render_template('index.html', hosts=proxmox_connections, now=now, stats=stats)
 
 @app.route('/add_host', methods=['GET', 'POST'])
 def add_host():
