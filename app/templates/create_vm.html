@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Create VM{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item active">Create VM</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-plus"></i> Create New Virtual Machine</h3>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="vmid" class="form-label">VM ID</label>
+                        <input type="number" class="form-control" id="vmid" name="vmid" value="{{ next_id }}" required>
+                        <div class="form-text">A unique numeric ID for this VM</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">A name for this VM</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="memory" class="form-label">Memory (MB)</label>
+                        <input type="number" class="form-control" id="memory" name="memory" value="512" required>
+                        <div class="form-text">Amount of RAM in MB</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cores" class="form-label">CPU Cores</label>
+                        <input type="number" class="form-control" id="cores" name="cores" value="1" required>
+                        <div class="form-text">Number of CPU cores</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="storage" class="form-label">Storage</label>
+                        <select class="form-select" id="storage" name="storage" required>
+                            {% for store in storages %}
+                                {% if 'images' in store.content %}
+                                    <option value="{{ store.storage }}">{{ store.storage }} ({{ store.type }})</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Storage pool for the VM disk</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="disk_size" class="form-label">Disk Size</label>
+                        <input type="text" class="form-control" id="disk_size" name="disk_size" value="8G" required>
+                        <div class="form-text">Format: [number][unit]. Units: K|M|G|T</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="iso" class="form-label">ISO Image</label>
+                        <select class="form-select" id="iso" name="iso">
+                            <option value="">None</option>
+                            {% for iso in iso_list %}
+                                <option value="{{ iso.volid.split(':')[1] }}">{{ iso.volid.split(':')[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Optional: ISO image to mount as CD-ROM</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Create VM</button>
+                <a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

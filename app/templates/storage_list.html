@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Storage Management{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item active">Storage</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-hdd"></i> Storage Management</h1>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Storage Resources</h5>
+    </div>
+    <div class="card-body">
+        {% if storages %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Content Types</th>
+                            <th>Status</th>
+                            <th>Usage</th>
+                            <th>Available Space</th>
+                            <th>Total Space</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for storage in storages %}
+                            <tr>
+                                <td>{{ storage.storage }}</td>
+                                <td>{{ storage.type }}</td>
+                                <td>
+                                    {% if storage.content %}
+                                        {% for content in storage.content.split(',') %}
+                                            <span class="badge bg-info">{{ content }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if storage.active == 1 %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if storage.usage and storage.usage.total > 0 %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                style="width: {{ (storage.usage.used / storage.usage.total * 100)|round }}%;" 
+                                                aria-valuenow="{{ (storage.usage.used / storage.usage.total * 100)|round }}" 
+                                                aria-valuemin="0" aria-valuemax="100">
+                                                {{ (storage.usage.used / storage.usage.total * 100)|round }}%
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if storage.usage %}
+                                        {{ (storage.usage.avail / (1024*1024*1024))|round(2) }} GB
+                                    {% else %}
+                                        Unknown
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if storage.usage %}
+                                        {{ (storage.usage.total / (1024*1024*1024))|round(2) }} GB
+                                    {% else %}
+                                        Unknown
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No storage resources found on this node.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
