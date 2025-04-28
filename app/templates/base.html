@@ -72,6 +72,65 @@
                             {% endif %}
                         </ul>
                         
+                        <!-- Global Search Component -->
+                        <form class="d-flex me-auto search-form" action="{{ url_for('search') }}" method="get">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Search VMs, containers, nodes..." 
+                                       name="q" id="global-search" value="{{ request.args.get('q', '') }}">
+                                <button class="btn btn-outline-primary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end p-3" style="width: 250px;">
+                                    <li>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="search_vms" id="search_vms" 
+                                                   value="true" {% if request.args.get('search_vms') != 'false' %}checked{% endif %}>
+                                            <label class="form-check-label" for="search_vms">
+                                                <i class="fas fa-desktop me-1"></i> Virtual Machines
+                                            </label>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="search_containers" id="search_containers" 
+                                                   value="true" {% if request.args.get('search_containers') != 'false' %}checked{% endif %}>
+                                            <label class="form-check-label" for="search_containers">
+                                                <i class="fas fa-cube me-1"></i> Containers
+                                            </label>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="search_nodes" id="search_nodes" 
+                                                   value="true" {% if request.args.get('search_nodes') != 'false' %}checked{% endif %}>
+                                            <label class="form-check-label" for="search_nodes">
+                                                <i class="fas fa-server me-1"></i> Nodes
+                                            </label>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="search_storage" id="search_storage" 
+                                                   value="true" {% if request.args.get('search_storage') != 'false' %}checked{% endif %}>
+                                            <label class="form-check-label" for="search_storage">
+                                                <i class="fas fa-hdd me-1"></i> Storage
+                                            </label>
+                                        </div>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <div class="d-grid">
+                                            <button type="submit" class="btn btn-sm btn-primary">Apply Filters</button>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </form>
+                        
                         {% if 'host_id' in request.view_args %}
                         <div class="breadcrumb-wrapper me-auto">
                             <nav aria-label="breadcrumb">

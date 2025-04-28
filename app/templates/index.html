@@ -28,7 +28,7 @@
                     <div class="row">
                         <div class="col-md-4">
                             <div class="resource-health mb-3">
-                                <h6>CPU Health</h6>
+                                <h6><i class="fas fa-microchip me-2"></i>CPU Health</h6>
                                 <div class="progress" style="height: 1.5rem;">
                                     <div class="progress-bar 
                                         {% if stats.cpu_health_percent > 75 %}
@@ -50,7 +50,7 @@
                         </div>
                         <div class="col-md-4">
                             <div class="resource-health mb-3">
-                                <h6>Memory Health</h6>
+                                <h6><i class="fas fa-memory me-2"></i>Memory Health</h6>
                                 <div class="progress" style="height: 1.5rem;">
                                     <div class="progress-bar 
                                         {% if stats.memory_health_percent > 75 %}
@@ -72,7 +72,7 @@
                         </div>
                         <div class="col-md-4">
                             <div class="resource-health mb-3">
-                                <h6>Storage Health</h6>
+                                <h6><i class="fas fa-hdd me-2"></i>Storage Health</h6>
                                 <div class="progress" style="height: 1.5rem;">
                                     <div class="progress-bar 
                                         {% if stats.storage_health_percent > 75 %}
@@ -205,7 +205,7 @@
                                             <span class="badge bg-danger">Offline</span>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td style="width: 15%;">
                                         <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.cpu|round(1) }}% Used">
                                             <div class="progress-bar {% if node.cpu > 90 %}bg-danger{% elif node.cpu > 75 %}bg-warning{% else %}bg-success{% endif %}" 
                                                 role="progressbar" 
@@ -215,7 +215,7 @@
                                                 aria-valuemax="100"></div>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td style="width: 15%;">
                                         <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.memory_percent|round(1) }}% Used ({{ node.memory_used|round(1) }} / {{ node.memory_total|round(1) }} GB)">
                                             <div class="progress-bar {% if node.memory_percent > 90 %}bg-danger{% elif node.memory_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" 
                                                 role="progressbar" 
@@ -225,7 +225,7 @@
                                                 aria-valuemax="100"></div>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td style="width: 15%;">
                                         <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.storage_percent|round(1) }}% Used">
                                             <div class="progress-bar {% if node.storage_percent > 90 %}bg-danger{% elif node.storage_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" 
                                                 role="progressbar" 

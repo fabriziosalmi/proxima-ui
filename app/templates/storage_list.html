@@ -22,6 +22,110 @@
     </div>
 </div>
 
+<!-- Storage Usage Visualization -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-chart-pie me-2"></i>Storage Visualization</h5>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary active" id="viewToggle-chart">Chart View</button>
+                    <button class="btn btn-sm btn-outline-primary" id="viewToggle-table">Table View</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="storage-charts-view">
+                    <div class="row">
+                        <!-- Storage Usage Overview -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Overall Storage Usage</h6>
+                                </div>
+                                <div class="card-body d-flex align-items-center justify-content-center">
+                                    <canvas id="storageOverviewChart" width="400" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Storage by Type -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Storage by Type</h6>
+                                </div>
+                                <div class="card-body d-flex align-items-center justify-content-center">
+                                    <canvas id="storageTypeChart" width="400" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Individual Storage Usage -->
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Storage Usage Detail</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="storageDetailChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Storage Usage Table (initially hidden) -->
+                <div id="storage-table-view" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="storageDetailTable">
+                            <thead>
+                                <tr>
+                                    <th>Storage</th>
+                                    <th>Type</th>
+                                    <th>Total (GB)</th>
+                                    <th>Used (GB)</th>
+                                    <th>Free (GB)</th>
+                                    <th>Used %</th>
+                                    <th>Content</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for storage in storage_pools %}
+                                <tr>
+                                    <td>{{ storage.storage }}</td>
+                                    <td>{{ storage.type }}</td>
+                                    <td>{{ (storage.total / (1024**3))|round(2) }}</td>
+                                    <td>{{ (storage.used / (1024**3))|round(2) }}</td>
+                                    <td>{{ ((storage.total - storage.used) / (1024**3))|round(2) }}</td>
+                                    <td>
+                                        <span class="badge {% if storage.percent_used > 90 %}bg-danger{% elif storage.percent_used > 75 %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ storage.percent_used|round(1) }}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% for content_type in storage.content.split(',') %}
+                                            <span class="badge bg-secondary">{{ content_type }}</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if storage.active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Storage Pools List -->
 <div class="card mb-4">
     <div class="card-header">
@@ -205,6 +309,82 @@
 {% block scripts %}
 <script>
     $(document).ready(function() {
+        // Chart instances
+        let storageOverviewChart = null;
+        let storageTypeChart = null;
+        let storageDetailChart = null;
+        
+        // Initialize charts on page load
+        initializeCharts();
+        
+        // Function to properly initialize charts
+        function initializeCharts() {
+            // Destroy any existing charts to prevent duplicates
+            if (storageOverviewChart) storageOverviewChart.destroy();
+            if (storageTypeChart) storageTypeChart.destroy();
+            if (storageDetailChart) storageDetailChart.destroy();
+            
+            // Initialize storage overview chart
+            storageOverviewChart = new Chart(document.getElementById('storageOverviewChart'), {
+                type: 'pie',
+                data: {
+                    labels: ['Used', 'Free'],
+                    datasets: [{
+                        data: [{{ total_used }}, {{ total_free }}],
+                        backgroundColor: ['#FF6384', '#36A2EB']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Initialize storage type chart
+            storageTypeChart = new Chart(document.getElementById('storageTypeChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Directory', 'NFS', 'CIFS'],
+                    datasets: [{
+                        data: [{{ dir_count }}, {{ nfs_count }}, {{ cifs_count }}],
+                        backgroundColor: ['#FFCE56', '#FF6384', '#36A2EB']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Initialize storage detail chart
+            storageDetailChart = new Chart(document.getElementById('storageDetailChart'), {
+                type: 'bar',
+                data: {
+                    labels: [{% for storage in storage_pools %}'{{ storage.storage }}'{% if not loop.last %},{% endif %}{% endfor %}],
+                    datasets: [{
+                        label: 'Used (GB)',
+                        data: [{% for storage in storage_pools %}{{ (storage.used / (1024**3))|round(2) }}{% if not loop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#FF6384'
+                    }, {
+                        label: 'Free (GB)',
+                        data: [{% for storage in storage_pools %}{{ ((storage.total - storage.used) / (1024**3))|round(2) }}{% if not loop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#36A2EB'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true, // Changed to true to fix height issues
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.8
+                }
+            });
+        }
+        
         // Hide all storage type fields initially
         $('.storage-type-fields').hide();
         
@@ -249,6 +429,24 @@
             }
             
             return true;
+        });
+
+        // Toggle between chart and table views
+        $('#viewToggle-chart').click(function() {
+            $('#storage-charts-view').show();
+            $('#storage-table-view').hide();
+            $(this).addClass('active');
+            $('#viewToggle-table').removeClass('active');
+            
+            // Reinitialize charts when switching to chart view to ensure proper rendering
+            setTimeout(initializeCharts, 50);
+        });
+
+        $('#viewToggle-table').click(function() {
+            $('#storage-charts-view').hide();
+            $('#storage-table-view').show();
+            $(this).addClass('active');
+            $('#viewToggle-chart').removeClass('active');
         });
     });
 </script>

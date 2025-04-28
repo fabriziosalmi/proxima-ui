@@ -2779,7 +2779,7 @@ def migrate_vm_form(host_id):
                 node_containers = connection.nodes(node_name).lxc.get()
                 for ct in node_containers:
                     ct['node'] = node_name
-                containers.extend(node_containers)
+                containers.extend(ct)
             except Exception as e:
                 print(f"Error getting containers from node {node_name}: {str(e)}")
         
@@ -3323,6 +3323,229 @@ def node_metrics(host_id, node):
     except Exception as e:
         flash(f"Failed to get node metrics: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
+
+@app.route('/search')
+def search():
+    query = request.args.get('q', '')
+    
+    if not query:
+        flash("Please enter a search term", 'warning')
+        return redirect(url_for('index'))
+    
+    # Get search filters
+    search_vms = request.args.get('search_vms', 'true') != 'false'
+    search_containers = request.args.get('search_containers', 'true') != 'false'
+    search_nodes = request.args.get('search_nodes', 'true') != 'false'
+    search_storage = request.args.get('search_storage', 'true') != 'false'
+    
+    # Get additional filters
+    status = request.args.get('status', '')
+    resource_type = request.args.get('resource_type', '')
+    selected_host_id = request.args.get('host_id', '')
+    tag = request.args.get('tag', '')
+    
+    # Initialize results
+    vm_results = []
+    container_results = []
+    node_results = []
+    storage_results = []
+    available_hosts = set()
+    
+    # Search across all hosts
+    for host_id, host_data in proxmox_connections.items():
+        try:
+            connection = host_data['connection']
+            available_hosts.add(host_id)
+            
+            # Filter by host if specified
+            if selected_host_id and host_id != selected_host_id:
+                continue
+            
+            # Search nodes if enabled
+            if search_nodes:
+                try:
+                    nodes = connection.nodes.get()
+                    for node in nodes:
+                        # Apply filter if resource_type is specified
+                        if resource_type and resource_type != 'node':
+                            continue
+                            
+                        # Check if query matches
+                        if (query.lower() in node['node'].lower() or 
+                            query.lower() in str(node.get('status', '')).lower()):
+                            
+                            # Apply status filter if specified
+                            if status and node.get('status') != status:
+                                continue
+                                
+                            try:
+                                # Get more node details
+                                node_status = connection.nodes(node['node']).status.get()
+                                
+                                # Calculate metrics
+                                cpu_usage = round(node_status.get('cpu', 0) * 100, 1)
+                                memory_total = node_status.get('memory', {}).get('total', 0)
+                                memory_used = node_status.get('memory', {}).get('used', 0)
+                                memory_usage = round((memory_used / memory_total) * 100, 1) if memory_total > 0 else 0
+                                
+                                # Get VM and container counts
+                                vm_count = len(connection.nodes(node['node']).qemu.get())
+                                container_count = len(connection.nodes(node['node']).lxc.get())
+                                
+                                # Add additional info to node object
+                                node['host_id'] = host_id
+                                node['cpu_usage'] = cpu_usage
+                                node['memory_usage'] = memory_usage
+                                node['vm_count'] = vm_count
+                                node['container_count'] = container_count
+                                node['uptime'] = node_status.get('uptime', 0)
+                                
+                                node_results.append(node)
+                            except Exception as e:
+                                print(f"Error getting details for node {node['node']}: {str(e)}")
+                except Exception as e:
+                    print(f"Error searching nodes on host {host_id}: {str(e)}")
+            
+            # Get all nodes for VM and container searches
+            nodes = connection.nodes.get()
+            for node_info in nodes:
+                node_name = node_info['node']
+                
+                # Skip offline nodes
+                if node_info['status'] != 'online':
+                    continue
+                
+                # Search VMs if enabled
+                if search_vms:
+                    try:
+                        vms = connection.nodes(node_name).qemu.get()
+                        for vm in vms:
+                            # Apply filter if resource_type is specified
+                            if resource_type and resource_type != 'vm':
+                                continue
+                                
+                            vm_name = vm.get('name', '').lower()
+                            vm_id = str(vm.get('vmid', ''))
+                            vm_status = str(vm.get('status', '')).lower()
+                            vm_tags = vm.get('tags', '').lower()
+                            
+                            # Apply status filter if specified
+                            if status and vm.get('status') != status:
+                                continue
+                                
+                            # Apply tag filter if specified
+                            if tag and tag.lower() not in vm_tags:
+                                continue
+                            
+                            if (query.lower() in vm_name or 
+                                query.lower() in vm_id or 
+                                query.lower() in vm_status or
+                                query.lower() in vm_tags):
+                                vm['host_id'] = host_id
+                                vm['node'] = node_name
+                                vm_results.append(vm)
+                    except Exception as e:
+                        print(f"Error searching VMs on node {node_name}: {str(e)}")
+                
+                # Search Containers if enabled
+                if search_containers:
+                    try:
+                        containers = connection.nodes(node_name).lxc.get()
+                        for container in containers:
+                            # Apply filter if resource_type is specified
+                            if resource_type and resource_type != 'container':
+                                continue
+                                
+                            container_name = container.get('name', '').lower()
+                            container_id = str(container.get('vmid', ''))
+                            container_status = str(container.get('status', '')).lower()
+                            container_tags = container.get('tags', '').lower()
+                            
+                            # Apply status filter if specified
+                            if status and container.get('status') != status:
+                                continue
+                                
+                            # Apply tag filter if specified
+                            if tag and tag.lower() not in container_tags:
+                                continue
+                            
+                            if (query.lower() in container_name or 
+                                query.lower() in container_id or 
+                                query.lower() in container_status or
+                                query.lower() in container_tags):
+                                container['host_id'] = host_id
+                                container['node'] = node_name
+                                container_results.append(container)
+                    except Exception as e:
+                        print(f"Error searching containers on node {node_name}: {str(e)}")
+            
+            # Search Storage if enabled
+            if search_storage:
+                try:
+                    storage_pools = connection.storage.get()
+                    for storage in storage_pools:
+                        # Apply filter if resource_type is specified
+                        if resource_type and resource_type != 'storage':
+                            continue
+                            
+                        storage_id = storage.get('storage', '').lower()
+                        storage_type = storage.get('type', '').lower()
+                        storage_content = storage.get('content', '').lower()
+                        
+                        if (query.lower() in storage_id or 
+                            query.lower() in storage_type or 
+                            query.lower() in storage_content):
+                            
+                            # Get storage usage if available
+                            if nodes:
+                                try:
+                                    node_name = nodes[0]['node']
+                                    storage_details = connection.nodes(node_name).storage(storage['storage']).status.get()
+                                    storage['used'] = storage_details.get('used', 0)
+                                    storage['total'] = storage_details.get('total', 0)
+                                    storage['usage_percent'] = round((storage['used'] / storage['total']) * 100, 1) if storage['total'] > 0 else 0
+                                except:
+                                    storage['used'] = 0
+                                    storage['total'] = 0
+                                    storage['usage_percent'] = 0
+                            
+                            storage['host_id'] = host_id
+                            storage['node'] = nodes[0]['node'] if nodes else ''
+                            storage_results.append(storage)
+                except Exception as e:
+                    print(f"Error searching storage on host {host_id}: {str(e)}")
+                    
+        except Exception as e:
+            print(f"Error searching host {host_id}: {str(e)}")
+            continue
+    
+    # Determine which tab should be active by default
+    active_tab = None
+    if vm_results and search_vms:
+        active_tab = 'vms'
+    elif container_results and search_containers:
+        active_tab = 'containers'
+    elif node_results and search_nodes:
+        active_tab = 'nodes'
+    elif storage_results and search_storage:
+        active_tab = 'storage'
+    
+    return render_template('search_results.html',
+                          query=query,
+                          status=status,
+                          resource_type=resource_type,
+                          selected_host_id=selected_host_id,
+                          tag=tag,
+                          vm_results=vm_results,
+                          container_results=container_results,
+                          node_results=node_results,
+                          storage_results=storage_results,
+                          search_vms=search_vms,
+                          search_containers=search_containers,
+                          search_nodes=search_nodes,
+                          search_storage=search_storage,
+                          active_tab=active_tab,
+                          available_hosts=list(available_hosts))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
