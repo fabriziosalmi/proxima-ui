@@ -12,6 +12,9 @@
     </ol>
 </nav>
 
+<!-- Resource Alerts Container -->
+<div id="vm-resource-alerts-container"></div>
+
 <div class="row mb-4">
     <div class="col">
         <h1><i class="fas fa-desktop"></i> VM: {{ vm_info.name }}</h1>
@@ -1226,6 +1229,35 @@
             $('#networkStatsModal .btn-group button').removeClass('active');
             $(this).addClass('active');
         });
+
+        // Check VM resources against thresholds and display alerts if needed
+        const vmData = {
+            vmid: '{{ vmid }}',
+            name: '{{ vm_info.name }}',
+            node: '{{ node }}',
+            status: '{{ vm_info.status }}',
+            cpu: {{ vm_info.cpu|default(0) }},
+            mem: {{ vm_info.mem|default(0) }},
+            maxmem: {{ vm_info.maxmem|default(1) }}
+            {% if vm_info.get('disks') %}
+            ,
+            disks: {
+                {% for key, disk in vm_info.get('disks', {}).items() %}
+                {% if disk.get('usage') is defined and disk.get('total') is defined %}
+                '{{ key }}': {
+                    usage: {{ disk.get('usage') }},
+                    total: {{ disk.get('total') }}
+                }{% if not loop.last %},{% endif %}
+                {% endif %}
+                {% endfor %}
+            }
+            {% endif %}
+        };
+        
+        // Check resource thresholds if VM is running
+        if (vmData.status === 'running') {
+            ResourceAlerts.checkVmResources(vmData);
+        }
     });
 </script>
 {% endblock %}

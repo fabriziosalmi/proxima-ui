@@ -12,7 +12,7 @@
 
 <div class="row">
     <div class="col-md-8">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">
                 <h5>User Interface Settings</h5>
             </div>
@@ -72,6 +72,135 @@
                     </div>
 
                     <button type="submit" class="btn btn-primary">Save Settings</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Resource Thresholds Section -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-bell me-2"></i>Resource Usage Thresholds & Alerts</h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="enableResourceAlerts" 
+                        {% if settings.enable_resource_alerts|default(true) %}checked{% endif %}>
+                    <label class="form-check-label" for="enableResourceAlerts">Enable Alerts</label>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Configure threshold levels for resource usage alerts. You'll receive notifications when resources exceed these values.</p>
+                
+                <form id="thresholdSettingsForm">
+                    <!-- CPU Threshold -->
+                    <div class="mb-4">
+                        <label for="cpuThreshold" class="form-label">CPU Usage Threshold</label>
+                        <div class="d-flex align-items-center">
+                            <input type="range" class="form-range me-3" id="cpuThreshold" min="50" max="95" step="5" 
+                                value="{{ settings.cpu_threshold|default(80) }}">
+                            <span class="threshold-value" id="cpuThresholdValue">{{ settings.cpu_threshold|default(80) }}%</span>
+                        </div>
+                        <div class="form-text">Alert when CPU usage exceeds this percentage</div>
+                        
+                        <div class="mt-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="cpuAlertLevel" id="cpuAlertWarning" value="warning" 
+                                    {% if settings.cpu_alert_level|default('warning') == 'warning' %}checked{% endif %}>
+                                <label class="form-check-label" for="cpuAlertWarning">
+                                    <span class="badge bg-warning">Warning</span>
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="cpuAlertLevel" id="cpuAlertDanger" value="danger" 
+                                    {% if settings.cpu_alert_level|default('warning') == 'danger' %}checked{% endif %}>
+                                <label class="form-check-label" for="cpuAlertDanger">
+                                    <span class="badge bg-danger">Critical</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Memory Threshold -->
+                    <div class="mb-4">
+                        <label for="memoryThreshold" class="form-label">Memory Usage Threshold</label>
+                        <div class="d-flex align-items-center">
+                            <input type="range" class="form-range me-3" id="memoryThreshold" min="50" max="95" step="5" 
+                                value="{{ settings.memory_threshold|default(85) }}">
+                            <span class="threshold-value" id="memoryThresholdValue">{{ settings.memory_threshold|default(85) }}%</span>
+                        </div>
+                        <div class="form-text">Alert when memory usage exceeds this percentage</div>
+                        
+                        <div class="mt-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="memoryAlertLevel" id="memoryAlertWarning" value="warning" 
+                                    {% if settings.memory_alert_level|default('warning') == 'warning' %}checked{% endif %}>
+                                <label class="form-check-label" for="memoryAlertWarning">
+                                    <span class="badge bg-warning">Warning</span>
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="memoryAlertLevel" id="memoryAlertDanger" value="danger" 
+                                    {% if settings.memory_alert_level|default('warning') == 'danger' %}checked{% endif %}>
+                                <label class="form-check-label" for="memoryAlertDanger">
+                                    <span class="badge bg-danger">Critical</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Storage Threshold -->
+                    <div class="mb-4">
+                        <label for="storageThreshold" class="form-label">Storage Usage Threshold</label>
+                        <div class="d-flex align-items-center">
+                            <input type="range" class="form-range me-3" id="storageThreshold" min="50" max="95" step="5" 
+                                value="{{ settings.storage_threshold|default(90) }}">
+                            <span class="threshold-value" id="storageThresholdValue">{{ settings.storage_threshold|default(90) }}%</span>
+                        </div>
+                        <div class="form-text">Alert when storage usage exceeds this percentage</div>
+                        
+                        <div class="mt-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="storageAlertLevel" id="storageAlertWarning" value="warning" 
+                                    {% if settings.storage_alert_level|default('danger') == 'warning' %}checked{% endif %}>
+                                <label class="form-check-label" for="storageAlertWarning">
+                                    <span class="badge bg-warning">Warning</span>
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="storageAlertLevel" id="storageAlertDanger" value="danger" 
+                                    {% if settings.storage_alert_level|default('danger') == 'danger' %}checked{% endif %}>
+                                <label class="form-check-label" for="storageAlertDanger">
+                                    <span class="badge bg-danger">Critical</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notification Settings -->
+                    <div class="mb-4">
+                        <h6>Notification Options</h6>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="showInDashboard" 
+                                {% if settings.show_alerts_dashboard|default(true) %}checked{% endif %}>
+                            <label class="form-check-label" for="showInDashboard">
+                                Show alerts on dashboard
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="showPopupNotifications" 
+                                {% if settings.show_popup_notifications|default(true) %}checked{% endif %}>
+                            <label class="form-check-label" for="showPopupNotifications">
+                                Show popup notifications
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="playAlertSound" 
+                                {% if settings.play_alert_sound|default(false) %}checked{% endif %}>
+                            <label class="form-check-label" for="playAlertSound">
+                                Play sound on alerts
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="saveThresholds" class="btn btn-primary">Save Threshold Settings</button>
                 </form>
             </div>
         </div>
@@ -146,6 +275,64 @@
                 }
             }
         });
+        
+        // Resource threshold sliders - update displayed values in real-time
+        $('#cpuThreshold').on('input', function() {
+            $('#cpuThresholdValue').text($(this).val() + '%');
+        });
+        
+        $('#memoryThreshold').on('input', function() {
+            $('#memoryThresholdValue').text($(this).val() + '%');
+        });
+        
+        $('#storageThreshold').on('input', function() {
+            $('#storageThresholdValue').text($(this).val() + '%');
+        });
+        
+        // Save threshold settings
+        $('#saveThresholds').click(function() {
+            const settings = {
+                enable_resource_alerts: $('#enableResourceAlerts').is(':checked'),
+                cpu_threshold: $('#cpuThreshold').val(),
+                cpu_alert_level: $('input[name="cpuAlertLevel"]:checked').val(),
+                memory_threshold: $('#memoryThreshold').val(),
+                memory_alert_level: $('input[name="memoryAlertLevel"]:checked').val(),
+                storage_threshold: $('#storageThreshold').val(),
+                storage_alert_level: $('input[name="storageAlertLevel"]:checked').val(),
+                show_alerts_dashboard: $('#showInDashboard').is(':checked'),
+                show_popup_notifications: $('#showPopupNotifications').is(':checked'),
+                play_alert_sound: $('#playAlertSound').is(':checked')
+            };
+            
+            // Save settings via AJAX
+            $.post('/api/settings/resource_thresholds', settings)
+                .done(function(response) {
+                    if (response.success) {
+                        // Show success message
+                        const notification = `
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle me-2"></i> Resource threshold settings saved successfully.
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        `;
+                        $('.flash-messages').append(notification);
+                        
+                        // Save to localStorage as backup
+                        localStorage.setItem('resourceThresholds', JSON.stringify(settings));
+                    } else {
+                        alert('Error saving settings: ' + response.error);
+                    }
+                })
+                .fail(function() {
+                    alert('Failed to save settings. Please try again.');
+                });
+        });
+        
+        // Initialize alert sounds (if enabled)
+        let alertSound;
+        if ($('#playAlertSound').is(':checked')) {
+            alertSound = new Audio('/static/sounds/alert.mp3');
+        }
     });
 </script>
 {% endblock %}

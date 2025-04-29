@@ -48,6 +48,9 @@
     </div>
 </div>
 
+<!-- Resource Alerts Container -->
+<div id="node-resource-alerts-container"></div>
+
 <!-- Node Health Status Row -->
 <div class="row mb-4">
     <div class="col-12">
@@ -703,6 +706,76 @@
                 bootstrap.Modal.getInstance(document.getElementById('bulkMigrateModal')).hide();
             }
         });
+
+        // Check node resources against thresholds and display alerts if needed
+        const nodeData = {
+            name: '{{ node }}',
+            host_id: '{{ host_id }}',
+            cpu: {{ node_status.cpu * 100 }},
+            memory_percent: {{ (node_status.memory.used / node_status.memory.total * 100)|round(2) }},
+            memory_used: {{ (node_status.memory.used / (1024*1024*1024))|round(2) }},
+            memory_total: {{ (node_status.memory.total / (1024*1024*1024))|round(2) }},
+            storage_percent: {{ (node_status.rootfs.used / node_status.rootfs.total * 100)|round(2) }}
+        };
+        
+        // Check resource thresholds
+        ResourceAlerts.checkNodeResources(nodeData);
+        
+        // Check VM resources if they are running
+        {% if vms is defined %}
+        {% for vm in vms %}
+        {% if vm.status == 'running' %}
+        const vmData = {
+            vmid: '{{ vm.vmid }}',
+            name: '{{ vm.name }}',
+            node: '{{ node }}',
+            status: '{{ vm.status }}',
+            cpu: {{ vm.cpu|default(0) }},
+            mem: {{ vm.mem|default(0) }},
+            maxmem: {{ vm.maxmem|default(1) }}
+            {% if vm.get('disks') %}
+            ,
+            disks: {
+                {% for key, disk in vm.get('disks', {}).items() %}
+                {% if disk.get('usage') is defined and disk.get('total') is defined %}
+                '{{ key }}': {
+                    usage: {{ disk.get('usage') }},
+                    total: {{ disk.get('total') }}
+                }{% if not loop.last %},{% endif %}
+                {% endif %}
+                {% endfor %}
+            }
+            {% endif %}
+        };
+        ResourceAlerts.checkVmResources(vmData);
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        
+        // Check container resources if they are running
+        {% if containers is defined %}
+        {% for container in containers %}
+        {% if container.status == 'running' %}
+        const containerData = {
+            vmid: '{{ container.vmid }}',
+            name: '{{ container.name }}',
+            node: '{{ node }}',
+            status: '{{ container.status }}',
+            cpu: {{ container.cpu|default(0) }},
+            mem: {{ container.mem|default(0) }},
+            maxmem: {{ container.maxmem|default(1) }}
+            {% if container.get('rootfs') %}
+            ,
+            rootfs: {
+                usage: {{ container.rootfs.get('usage')|default(0) }},
+                total: {{ container.rootfs.get('total')|default(1) }}
+            }
+            {% endif %}
+        };
+        ResourceAlerts.checkContainerResources(containerData);
+        {% endif %}
+        {% endfor %}
+        {% endif %}
     });
 </script>
 {% endblock %}

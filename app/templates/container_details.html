@@ -12,6 +12,9 @@
     </ol>
 </nav>
 
+<!-- Resource Alerts Container -->
+<div id="container-resource-alerts-container"></div>
+
 <div class="row mb-4">
     <div class="col">
         <h1><i class="fas fa-box"></i> Container: {{ container_info.name }}</h1>
@@ -177,6 +180,7 @@
 {% block scripts %}
 <script>
     $(document).ready(function() {
+        // Existing container action code
         $('.container-action').click(function() {
             const action = $(this).data('action');
             const hostId = $(this).data('host-id');
@@ -201,6 +205,29 @@
                 });
             }
         });
+        
+        // Check container resources against thresholds and display alerts if needed
+        const containerData = {
+            vmid: '{{ vmid }}',
+            name: '{{ container_info.name }}',
+            node: '{{ node }}',
+            status: '{{ container_info.status }}',
+            cpu: {{ container_info.cpu|default(0) }},
+            mem: {{ container_info.mem|default(0) }},
+            maxmem: {{ container_info.maxmem|default(1) }}
+            {% if container_info.get('rootfs') %}
+            ,
+            rootfs: {
+                usage: {{ container_info.rootfs.get('usage')|default(0) }},
+                total: {{ container_info.rootfs.get('total')|default(1) }}
+            }
+            {% endif %}
+        };
+        
+        // Check resource thresholds if container is running
+        if (containerData.status === 'running') {
+            ResourceAlerts.checkContainerResources(containerData);
+        }
     });
 </script>
 {% endblock %}
