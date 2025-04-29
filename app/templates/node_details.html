@@ -3,17 +3,51 @@
 {% block title %}Proxmox UI - Node Details{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
-        <li class="breadcrumb-item active">{{ node }}</li>
-    </ol>
-</nav>
+<div class="breadcrumb-container py-2 px-3 mb-3 position-relative w-100 rounded-3 bg-dark">
+    <nav aria-label="breadcrumb" class="d-flex justify-content-between align-items-center">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-light">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}" class="text-light">{{ host_id }}</a></li>
+            <li class="breadcrumb-item active text-light">{{ node }}</li>
+        </ol>
+        <div class="d-flex flex-wrap gap-1">
+            <a href="{{ url_for('create_vm', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-plus-circle"></i> Create VM
+            </a>
+            <a href="{{ url_for('create_container', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-plus-circle"></i> Create CT
+            </a>
+            <a href="{{ url_for('batch_create', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-layer-group"></i> Batch Create
+            </a>
+            <a href="{{ url_for('batch_config', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-sliders-h"></i> Batch Config
+            </a>
+            <a href="{{ url_for('template_management', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-box-open"></i> Templates
+            </a>
+            <a href="{{ url_for('node_network', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-network-wired"></i> Network
+            </a>
+            <a href="{{ url_for('node_firewall', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-shield-alt"></i> Firewall
+            </a>
+            <a href="{{ url_for('node_metrics', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-chart-line"></i> Metrics
+            </a>
+            <a href="{{ url_for('migrate_vm_form', host_id=host_id) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-exchange-alt"></i> Migrate
+            </a>
+            <a href="{{ url_for('node_maintenance', host_id=host_id, node=node) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-wrench"></i> Maintenance
+            </a>
+        </div>
+    </nav>
+</div>
 
 <div class="row mb-4">
     <div class="col">
-        <h1><i class="fas fa-server"></i> Node: {{ node }}</h1>
+        <!-- <h1><i class="fas fa-server"></i> Node: {{ node }}</h1> -->
     </div>
 </div>
 
@@ -22,45 +56,6 @@
 
 <!-- Resource Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-light dark-mode-black h-100">
-            <div class="card-body">
-                <h6 class="card-title mb-2"><i class="fas fa-cogs me-1"></i> Actions</h6>
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="{{ url_for('create_vm', host_id=host_id, node=node) }}" class="btn btn-sm btn-primary">
-                        <i class="fas fa-plus"></i> Create VM
-                    </a>
-                    <a href="{{ url_for('create_container', host_id=host_id, node=node) }}" class="btn btn-sm btn-success">
-                        <i class="fas fa-plus"></i> Create Container
-                    </a>
-                    <a href="{{ url_for('batch_create', host_id=host_id, node=node) }}" class="btn btn-sm btn-primary">
-                        <i class="fas fa-layer-group"></i> Batch Create
-                    </a>
-                    <a href="{{ url_for('batch_config', host_id=host_id, node=node) }}" class="btn btn-sm btn-success">
-                        <i class="fas fa-sliders-h"></i> Batch Config
-                    </a>
-                    <a href="{{ url_for('template_management', host_id=host_id, node=node) }}" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-box-open"></i> Templates
-                    </a>
-                    <a href="{{ url_for('node_network', host_id=host_id, node=node) }}" class="btn btn-sm btn-info">
-                        <i class="fas fa-network-wired"></i> Network
-                    </a>
-                    <a href="{{ url_for('node_firewall', host_id=host_id, node=node) }}" class="btn btn-sm btn-danger">
-                        <i class="fas fa-shield-alt"></i> Firewall
-                    </a>
-                    <a href="{{ url_for('node_metrics', host_id=host_id, node=node) }}" class="btn btn-sm btn-warning">
-                        <i class="fas fa-chart-line"></i> Metrics
-                    </a>
-                    <a href="{{ url_for('migrate_vm_form', host_id=host_id) }}" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-exchange-alt"></i> Migrate
-                    </a>
-                    <a href="{{ url_for('node_maintenance', host_id=host_id, node=node) }}" class="btn btn-sm btn-warning">
-                        <i class="fas fa-wrench"></i> Maintenance
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
     <div class="col-md-3">
         <div class="card bg-success text-white h-100">
             <div class="card-body">
