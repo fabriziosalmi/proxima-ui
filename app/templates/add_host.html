@@ -20,15 +20,50 @@
                 <label for="port" class="form-label">Port</label>
                 <input type="number" class="form-control" id="port" name="port" value="8006">
             </div>
+            
+            <!-- Authentication Method Selection -->
             <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" class="form-control" id="username" name="username" placeholder="root@pam" required>
-                <div class="form-text">Usually in the format: username@realm (e.g., root@pam)</div>
+                <label class="form-label">Authentication Method</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="auth_method" id="auth_password" value="password" checked onchange="toggleAuthMethod()">
+                    <label class="form-check-label" for="auth_password">
+                        Username/Password
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="auth_method" id="auth_apikey" value="apikey" onchange="toggleAuthMethod()">
+                    <label class="form-check-label" for="auth_apikey">
+                        API Key
+                    </label>
+                </div>
             </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+            
+            <!-- Username/Password Auth Fields -->
+            <div id="password_auth_fields">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="root@pam">
+                    <div class="form-text">Usually in the format: username@realm (e.g., root@pam)</div>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password">
+                </div>
             </div>
+            
+            <!-- API Key Auth Fields -->
+            <div id="apikey_auth_fields" style="display: none;">
+                <div class="mb-3">
+                    <label for="api_tokenid" class="form-label">API Token ID</label>
+                    <input type="text" class="form-control" id="api_tokenid" name="api_tokenid" placeholder="username@pam!tokenname">
+                    <div class="form-text">In the format: username@realm!tokenname</div>
+                </div>
+                <div class="mb-3">
+                    <label for="api_token" class="form-label">API Secret</label>
+                    <input type="password" class="form-control" id="api_token" name="api_token">
+                </div>
+            </div>
+            
             <div class="mb-3 form-check">
                 <input type="checkbox" class="form-check-input" id="verify_ssl" name="verify_ssl">
                 <label class="form-check-label" for="verify_ssl">Verify SSL</label>
@@ -39,4 +74,26 @@
         </form>
     </div>
 </div>
+
+<!-- JavaScript to toggle between auth methods -->
+<script>
+function toggleAuthMethod() {
+    const passwordAuth = document.getElementById('auth_password').checked;
+    document.getElementById('password_auth_fields').style.display = passwordAuth ? 'block' : 'none';
+    document.getElementById('apikey_auth_fields').style.display = passwordAuth ? 'none' : 'block';
+    
+    // Reset the required attributes based on selected method
+    if (passwordAuth) {
+        document.getElementById('username').setAttribute('required', '');
+        document.getElementById('password').setAttribute('required', '');
+        document.getElementById('api_tokenid').removeAttribute('required');
+        document.getElementById('api_token').removeAttribute('required');
+    } else {
+        document.getElementById('username').removeAttribute('required');
+        document.getElementById('password').removeAttribute('required');
+        document.getElementById('api_tokenid').setAttribute('required', '');
+        document.getElementById('api_token').setAttribute('required', '');
+    }
+}
+</script>
 {% endblock %}

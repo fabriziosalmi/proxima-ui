@@ -63,14 +63,26 @@ def load_connections():
                 saved_data = pickle.load(f)
                 for host_id, data in saved_data.items():
                     try:
+                        # Build connection parameters
+                        conn_params = {
+                            'host': data['host'],
+                            'port': data['port'],
+                            'verify_ssl': data['verify_ssl']
+                        }
+                        
+                        # Handle different authentication methods
+                        if data.get('auth_method') == 'apikey':
+                            # Use API key authentication
+                            conn_params['token_name'] = data['token_name']
+                            conn_params['token_value'] = data['token_value']
+                        else:
+                            # Default to username/password authentication
+                            conn_params['user'] = data['user']
+                            conn_params['password'] = data['password']
+                        
                         # Reconnect to each saved host
-                        proxmox = ProxmoxAPI(
-                            data['host'], 
-                            user=data['user'], 
-                            password=data['password'],
-                            port=data['port'], 
-                            verify_ssl=data['verify_ssl']
-                        )
+                        proxmox = ProxmoxAPI(**conn_params)
+                        
                         # Update connection data with live connection
                         data['connection'] = proxmox
                         proxmox_connections[host_id] = data
@@ -265,15 +277,56 @@ def index():
 def add_host():
     if request.method == 'POST':
         host = request.form.get('hostname')
-        user = request.form.get('username')
-        password = request.form.get('password')
         port = int(request.form.get('port', 8006))
         verify_ssl = request.form.get('verify_ssl') == 'on'
+        auth_method = request.form.get('auth_method', 'password')
         
         try:
+            # Connection parameters
+            connection_params = {
+                'host': host,
+                'port': port,
+                'verify_ssl': verify_ssl
+            }
+            
+            # Handle different authentication methods
+            if auth_method == 'password':
+                user = request.form.get('username')
+                password = request.form.get('password')
+                
+                # Check if required fields are present
+                if not user or not password:
+                    flash("Username and password are required for password authentication", 'danger')
+                    return render_template('add_host.html')
+                
+                # Add password auth parameters
+                connection_params['user'] = user
+                connection_params['password'] = password
+                auth_info = {
+                    'auth_method': 'password',
+                    'user': user,
+                    'password': password
+                }
+            else:  # API key authentication
+                api_tokenid = request.form.get('api_tokenid')
+                api_token = request.form.get('api_token')
+                
+                # Check if required fields are present
+                if not api_tokenid or not api_token:
+                    flash("API Token ID and Secret are required for API key authentication", 'danger')
+                    return render_template('add_host.html')
+                
+                # Add API key auth parameters
+                connection_params['token_name'] = api_tokenid
+                connection_params['token_value'] = api_token
+                auth_info = {
+                    'auth_method': 'apikey',
+                    'token_name': api_tokenid,
+                    'token_value': api_token
+                }
+            
             # Test connection
-            proxmox = ProxmoxAPI(host, user=user, password=password, 
-                                 port=port, verify_ssl=verify_ssl)
+            proxmox = ProxmoxAPI(**connection_params)
             version = proxmox.version.get()
             
             # Store connection info
@@ -281,11 +334,10 @@ def add_host():
                 host_id = f"{host}:{port}"
                 proxmox_connections[host_id] = {
                     'host': host,
-                    'user': user,
                     'port': port,
                     'verify_ssl': verify_ssl,
-                    'password': password,
-                    'connection': proxmox
+                    'connection': proxmox,
+                    **auth_info
                 }
             
             # Save updated connections
@@ -4165,7 +4217,7 @@ def jobs(host_id):
                 cluster_jobs = connection.cluster.jobs.get()
                 if cluster_jobs:
                     jobs_list = cluster_jobs
-                    print(f"Retrieved {len(jobs_list)} jobs from cluster API in standalone mode")
+                    print(f"Retrieved {len(cluster_jobs)} jobs from cluster API in standalone mode")
         except Exception as e:
             # This exception is expected in standalone environments
             print(f"Could not retrieve jobs from cluster API: {str(e)}")
