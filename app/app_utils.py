@@ -8,6 +8,7 @@ import datetime
 import time
 import uuid
 import pickle
+import re  # Added for log file parsing
 import threading  # Add missing threading import
 
 # Cache implementation functions
@@ -160,49 +161,119 @@ def update_settings_route():
 
 def logs_route():
     """
-    View UI application logs
+    View UI application logs - reads actual logs from the app.log file
     """
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 100, type=int)
     log_level = request.args.get('level', 'all')
     
-    # In a real application, logs would be read from a log file or database
-    # Let's create actual log entries from application logs
-    
     # Set up log file path
     log_file_path = os.path.join(os.path.dirname(__file__), 'app.log')
     
-    # If log file doesn't exist, create some sample logs
-    if not os.path.exists(log_file_path):
-        app_logs = [
-            {'timestamp': datetime.datetime.now() - datetime.timedelta(minutes=i*5), 
-             'level': ['INFO', 'WARNING', 'ERROR', 'DEBUG'][i % 4],
-             'message': f"Application startup completed successfully" if i == 0 else
-                        f"User login attempt {'successful' if i % 3 != 0 else 'failed'}" if i % 5 == 1 else
-                        f"Database connection {'established' if i % 2 == 0 else 'timeout'}" if i % 4 == 2 else
-                        f"API request to /{'host' if i % 2 == 0 else 'vm'}/{i*10} completed in {i*10 + 5}ms" if i % 3 == 0 else
-                        f"Cache {'hit' if i % 2 == 0 else 'miss'} for resource id {i*100}", 
-             'source': ['app', 'api', 'auth', 'database'][i % 4]}
-            for i in range(200)
-        ]
-    else:
-        # In a real implementation, this would parse the log file
-        # For now, we'll still use sample data but with more realistic entries
-        app_logs = [
-            {'timestamp': datetime.datetime.now() - datetime.timedelta(minutes=i*5), 
-             'level': ['INFO', 'WARNING', 'ERROR', 'DEBUG'][i % 4],
-             'message': f"Host connection {'established' if i % 3 == 0 else 'failed'}" if i % 7 == 0 else
-                        f"VM {i*10} status change to {'running' if i % 2 == 0 else 'stopped'}" if i % 5 == 1 else
-                        f"Backup job {i*5} {'completed' if i % 2 == 0 else 'failed'}" if i % 6 == 2 else
-                        f"API request to {['cluster', 'node', 'storage', 'vm'][i % 4]}/{i*10} responded with status {200 if i % 3 != 0 else 500}" if i % 4 == 3 else
-                        f"User {['admin', 'operator', 'viewer'][i % 3]} performed {['create', 'delete', 'update', 'view'][i % 4]} operation", 
-             'source': ['proxmox', 'ui', 'auth', 'scheduler'][i % 4]}
-            for i in range(200)
-        ]
+    # Initialize empty log array
+    app_logs = []
     
-    # Filter logs by level if requested
-    if log_level != 'all':
-        app_logs = [log for log in app_logs if log['level'] == log_level.upper()]
+    # Common log patterns
+    # Format: [2025-04-29 10:15:30,123] [INFO] [app] Message here
+    log_pattern = r'\[([\d\-\s:,]+)\]\s+\[(INFO|WARNING|ERROR|DEBUG)\]\s+\[([^\]]+)\]\s+(.+)'
+    
+    if os.path.exists(log_file_path):
+        try:
+            # Read all logs, but we'll do it more efficiently for large files
+            with open(log_file_path, 'r') as log_file:
+                # Read the file in reverse to get the latest logs first
+                log_entries = []
+                
+                # For large files, we read in chunks to avoid loading everything in memory at once
+                log_file.seek(0, os.SEEK_END)
+                file_size = log_file.tell()
+                
+                # Start from the end of the file and work backwards
+                # We read in reasonably sized chunks (100KB)
+                chunk_size = 100 * 1024
+                
+                # Initialize position at end of file
+                position = file_size
+                entries_found = 0
+                max_entries = per_page * (page + 2)  # Read a bit more than we need for pagination
+                
+                # We'll use these to build up log entries that span multiple lines
+                current_entry = None
+                entry_buffer = []
+                
+                while position > 0 and entries_found < max_entries:
+                    # Move back by chunk size or to start of file
+                    chunk_end = position
+                    position = max(0, position - chunk_size)
+                    
+                    # Read the chunk
+                    log_file.seek(position)
+                    chunk = log_file.read(chunk_end - position)
+                    
+                    # Split the chunk into lines
+                    lines = chunk.splitlines()
+                    
+                    # If we're not at the beginning of the file, the first line might be partial
+                    # We'll handle it in the next iteration
+                    if position > 0 and len(lines) > 0:
+                        partial_line = lines[0]
+                        lines = lines[1:]
+                    
+                    # Process lines in reverse (since we're reading backwards)
+                    for line in reversed(lines):
+                        match = re.match(log_pattern, line)
+                        
+                        if match:
+                            # If we were building a multiline entry, save it first
+                            if entry_buffer:
+                                if current_entry:
+                                    # Append multiline content to the previous entry
+                                    current_entry['message'] += '\n' + '\n'.join(reversed(entry_buffer))
+                                entry_buffer = []
+                            
+                            # Parse the new log entry
+                            timestamp_str, level, source, message = match.groups()
+                            try:
+                                # Parse timestamp from log entry
+                                timestamp = datetime.datetime.strptime(timestamp_str.strip(), '%Y-%m-%d %H:%M:%S,%f')
+                            except ValueError:
+                                # Fallback in case timestamp format differs
+                                timestamp = datetime.datetime.now()
+                            
+                            current_entry = {
+                                'timestamp': timestamp,
+                                'level': level,
+                                'source': source,
+                                'message': message
+                            }
+                            
+                            # Filter by log level if specified
+                            if log_level == 'all' or level.lower() == log_level.lower():
+                                log_entries.append(current_entry)
+                                entries_found += 1
+                        else:
+                            # This is a continuation of a multiline log
+                            entry_buffer.append(line)
+                
+                # Process logs in chronological order (newest first for display)
+                app_logs = log_entries
+        except Exception as e:
+            # If there's an error reading the log file, show that as an error entry
+            error_entry = {
+                'timestamp': datetime.datetime.now(),
+                'level': 'ERROR',
+                'source': 'ui',
+                'message': f"Error reading log file: {str(e)}"
+            }
+            app_logs.append(error_entry)
+    else:
+        # Create a sample entry if log file doesn't exist yet
+        app_logs = [{
+            'timestamp': datetime.datetime.now(),
+            'level': 'INFO',
+            'source': 'ui',
+            'message': "No log file found. This is the first application log entry."
+        }]
     
     # Simple pagination
     start = (page - 1) * per_page

@@ -1,0 +1,2 @@
+[2025-04-29 10:15:30,123] [INFO] [app] Application started successfully
+[2025-04-29 10:15:35,456] [WARNING] [api] Connection timeout to Proxmox host

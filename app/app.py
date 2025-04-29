@@ -2,6 +2,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request, jso
 from flask_bootstrap import Bootstrap
 import os
 import json
+import re
 from dotenv import load_dotenv
 from proxmoxer import ProxmoxAPI
 import pickle
@@ -9,10 +10,26 @@ import threading
 import datetime
 import time
 import schedule  # For snapshot scheduling
-import re  # For regex pattern matching
-import random
+import logging  # For application logging
+import sys
 import uuid  # For generating unique IDs
 import requests  # For making HTTP requests
+
+# Set up logging
+log_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s')
+log_file_path = os.path.join(os.path.dirname(__file__), 'app.log')
+file_handler = logging.FileHandler(log_file_path)
+file_handler.setFormatter(log_formatter)
+file_handler.setLevel(logging.INFO)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(log_formatter)
+console_handler.setLevel(logging.INFO)
+
+app_logger = logging.getLogger('proxima-ui')
+app_logger.setLevel(logging.INFO)
+app_logger.addHandler(file_handler)
+app_logger.addHandler(console_handler)
 
 # Import utility functions and route handlers from app_utils
 from app_utils import (
@@ -4484,43 +4501,82 @@ def logs():
     per_page = request.args.get('per_page', 100, type=int)
     log_level = request.args.get('level', 'all')
     
-    # In a real application, logs would be read from a log file or database
-    # Let's create actual log entries from application logs
-    
     # Set up log file path
     log_file_path = os.path.join(os.path.dirname(__file__), 'app.log')
     
-    # If log file doesn't exist, create some sample logs
-    if not os.path.exists(log_file_path):
-        app_logs = [
-            {'timestamp': datetime.datetime.now() - datetime.timedelta(minutes=i*5), 
-             'level': ['INFO', 'WARNING', 'ERROR', 'DEBUG'][i % 4],
-             'message': f"Application startup completed successfully" if i == 0 else
-                        f"User login attempt {'successful' if i % 3 != 0 else 'failed'}" if i % 5 == 1 else
-                        f"Database connection {'established' if i % 2 == 0 else 'timeout'}" if i % 4 == 2 else
-                        f"API request to /{'host' if i % 2 == 0 else 'vm'}/{i*10} completed in {i*10 + 5}ms" if i % 3 == 0 else
-                        f"Cache {'hit' if i % 2 == 0 else 'miss'} for resource id {i*100}", 
-             'source': ['app', 'api', 'auth', 'database'][i % 4]}
-            for i in range(200)
-        ]
+    # Read actual logs from the log file if it exists
+    app_logs = []
+    if os.path.exists(log_file_path):
+        try:
+            with open(log_file_path, 'r') as f:
+                log_lines = f.readlines()
+                
+            # Parse log lines into structured format
+            for line in log_lines:
+                try:
+                    # Example log format: [2025-04-29 12:34:56] [INFO] [app] Message here
+                    # Extract components using regex
+                    match = re.match(r'\[(.*?)\]\s*\[(.*?)\]\s*\[(.*?)\]\s*(.*)', line)
+                    if match:
+                        timestamp_str, level, source, message = match.groups()
+                        try:
+                            timestamp = datetime.datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            timestamp = datetime.datetime.now()  # Fallback
+                            
+                        log_entry = {
+                            'timestamp': timestamp,
+                            'level': level,
+                            'source': source,
+                            'message': message.strip()
+                        }
+                        app_logs.append(log_entry)
+                    else:
+                        # Simpler fallback parsing
+                        parts = line.split(']')
+                        if len(parts) >= 3:
+                            try:
+                                timestamp_str = parts[0].strip('[')
+                                level = parts[1].strip('[').strip()
+                                message = ']'.join(parts[2:]).strip()
+                                timestamp = datetime.datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                            except (ValueError, IndexError):
+                                timestamp = datetime.datetime.now()
+                                level = "INFO"
+                                message = line.strip()
+                                
+                            log_entry = {
+                                'timestamp': timestamp,
+                                'level': level,
+                                'source': 'app',
+                                'message': message
+                            }
+                            app_logs.append(log_entry)
+                        else:
+                            # If we can't parse the line, add it as is
+                            app_logs.append({
+                                'timestamp': datetime.datetime.now(),
+                                'level': 'INFO',
+                                'source': 'unknown',
+                                'message': line.strip()
+                            })
+                except Exception as e:
+                    print(f"Error parsing log line: {e}")
+                    
+            # Sort logs by timestamp (newest first)
+            app_logs.sort(key=lambda x: x['timestamp'], reverse=True)
+                    
+        except Exception as e:
+            print(f"Error reading log file: {e}")
+            # Fall back to sample logs
+            app_logs = create_sample_logs()
     else:
-        # In a real implementation, this would parse the log file
-        # For now, we'll still use sample data but with more realistic entries
-        app_logs = [
-            {'timestamp': datetime.datetime.now() - datetime.timedelta(minutes=i*5), 
-             'level': ['INFO', 'WARNING', 'ERROR', 'DEBUG'][i % 4],
-             'message': f"Host connection {'established' if i % 3 == 0 else 'failed'}" if i % 7 == 0 else
-                        f"VM {i*10} status change to {'running' if i % 2 == 0 else 'stopped'}" if i % 5 == 1 else
-                        f"Backup job {i*5} {'completed' if i % 2 == 0 else 'failed'}" if i % 6 == 2 else
-                        f"API request to {['cluster', 'node', 'storage', 'vm'][i % 4]}/{i*10} responded with status {200 if i % 3 != 0 else 500}" if i % 4 == 3 else
-                        f"User {['admin', 'operator', 'viewer'][i % 3]} performed {['create', 'delete', 'update', 'view'][i % 4]} operation", 
-             'source': ['proxmox', 'ui', 'auth', 'scheduler'][i % 4]}
-            for i in range(200)
-        ]
+        # If log file doesn't exist, create some sample logs
+        app_logs = create_sample_logs()
     
     # Filter logs by level if requested
     if log_level != 'all':
-        app_logs = [log for log in app_logs if log['level'] == log_level.upper()]
+        app_logs = [log for log in app_logs if log['level'].upper() == log_level.upper()]
     
     # Simple pagination
     start = (page - 1) * per_page
@@ -4534,6 +4590,20 @@ def logs():
                           total_pages=total_pages,
                           per_page=per_page,
                           log_level=log_level)
+
+def create_sample_logs():
+    """Create sample logs for demonstration when real logs aren't available"""
+    return [
+        {'timestamp': datetime.datetime.now() - datetime.timedelta(minutes=i*5), 
+         'level': ['INFO', 'WARNING', 'ERROR', 'DEBUG'][i % 4],
+         'message': f"Host connection {'established' if i % 3 == 0 else 'failed'}" if i % 7 == 0 else
+                    f"VM {i*10} status change to {'running' if i % 2 == 0 else 'stopped'}" if i % 5 == 1 else
+                    f"Backup job {i*5} {'completed' if i % 2 == 0 else 'failed'}" if i % 6 == 2 else
+                    f"API request to {['cluster', 'node', 'storage', 'vm'][i % 4]}/{i*10} responded with status {200 if i % 3 != 0 else 500}" if i % 4 == 3 else
+                    f"User {['admin', 'operator', 'viewer'][i % 3]} performed {['create', 'delete', 'update', 'view'][i % 4]} operation", 
+         'source': ['proxmox', 'ui', 'auth', 'scheduler'][i % 4]}
+        for i in range(200)
+    ]
 
 @app.route('/host/<host_id>/<node>/batch_create', methods=['GET', 'POST'])
 def batch_create(host_id, node):
