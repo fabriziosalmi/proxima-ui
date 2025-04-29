@@ -559,3 +559,21 @@ select:disabled {
     white-space: nowrap;
     border-width: 0;
 }
+
+/* Consistent font size for breadcrumbs and buttons */
+.breadcrumb-container {
+    font-size: 0.9rem;
+}
+
+.breadcrumb-container .breadcrumb-item {
+    font-size: 0.9rem;
+}
+
+.breadcrumb-container .breadcrumb-item a {
+    text-decoration: none;
+}
+
+.breadcrumb-container .badge {
+    font-size: 0.9rem;
+    font-weight: normal;
+}

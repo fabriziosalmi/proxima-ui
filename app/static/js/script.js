@@ -121,6 +121,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial modal theme setup
     updateModalTheme();
+    
+    // Run on page load
+    adjustBadgeColors();
 });
 
 /**
@@ -814,3 +817,30 @@ function hideLoadingOverlay() {
         }, 300);
     }
 }
+
+/**
+ * Add theme-based text color adjustment for all badge elements
+ */
+function adjustBadgeColors() {
+    const isDarkTheme = document.body.getAttribute('data-bs-theme') === 'dark';
+    const badges = document.querySelectorAll('.badge');
+    
+    badges.forEach(badge => {
+        // Skip badges that already have explicit text color classes
+        if (badge.classList.contains('text-white') || badge.classList.contains('text-dark')) {
+            return;
+        }
+        
+        // Apply appropriate text color based on theme
+        if (isDarkTheme) {
+            badge.classList.add('text-white');
+            badge.classList.remove('text-dark');
+        } else {
+            badge.classList.add('text-dark');
+            badge.classList.remove('text-white');
+        }
+    });
+}
+
+// Listen for theme changes
+document.addEventListener('themeChanged', adjustBadgeColors);
