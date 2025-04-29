@@ -3,14 +3,48 @@
 {% block title %}Proxmox UI - VM Details{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
-        <li class="breadcrumb-item active">VM {{ vmid }}</li>
-    </ol>
-</nav>
+<div class="breadcrumb-container py-2 px-3 mb-3 position-relative w-100 rounded-3 bg-dark">
+    <nav aria-label="breadcrumb" class="d-flex justify-content-between align-items-center">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-light">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}" class="text-light">{{ host_id }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="text-light">{{ node }}</a></li>
+            <li class="breadcrumb-item active text-light">VM {{ vmid }}</li>
+        </ol>
+        <div class="d-flex flex-wrap gap-1">
+            <a href="{{ url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-camera"></i> Snapshots
+            </a>
+            <a href="{{ url_for('vm_firewall', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-shield-alt"></i> Firewall
+            </a>
+            <a href="{{ url_for('clone_vm', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-copy"></i> Clone
+            </a>
+            <a href="{{ url_for('edit_vm_config', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-cogs"></i> Edit Config
+            </a>
+            <a href="{{ url_for('vm_metrics', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-sm btn-outline-light">
+                <i class="fas fa-chart-line"></i> Metrics
+            </a>
+            {% if vm_info.status == 'running' %}
+                <button type="button" class="btn btn-sm btn-outline-light vm-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
+                    <i class="fas fa-power-off"></i> Shutdown
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-light vm-action" data-action="stop" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
+                    <i class="fas fa-stop"></i> Stop
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-light vm-action" data-action="reset" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            {% else %}
+                <button type="button" class="btn btn-sm btn-outline-light vm-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
+                    <i class="fas fa-play"></i> Start
+                </button>
+            {% endif %}
+        </div>
+    </nav>
+</div>
 
 <!-- Resource Alerts Container -->
 <div id="vm-resource-alerts-container"></div>
@@ -18,40 +52,6 @@
 <div class="row mb-4">
     <div class="col">
         <h1><i class="fas fa-desktop"></i> VM: {{ vm_info.name }}</h1>
-    </div>
-    <div class="col-auto">
-        <div class="btn-group" role="group">
-            <a href="{{ url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-info">
-                <i class="fas fa-camera"></i> Snapshots
-            </a>
-            <a href="{{ url_for('vm_firewall', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-danger">
-                <i class="fas fa-shield-alt"></i> Firewall
-            </a>
-            <a href="{{ url_for('clone_vm', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-success">
-                <i class="fas fa-copy"></i> Clone
-            </a>
-            <a href="{{ url_for('edit_vm_config', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-primary">
-                <i class="fas fa-cogs"></i> Edit Config
-            </a>
-            <a href="{{ url_for('vm_metrics', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-warning">
-                <i class="fas fa-chart-line"></i> Metrics
-            </a>
-            {% if vm_info.status == 'running' %}
-                <button type="button" class="btn btn-warning vm-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
-                    <i class="fas fa-power-off"></i> Shutdown
-                </button>
-                <button type="button" class="btn btn-danger vm-action" data-action="stop" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
-                    <i class="fas fa-stop"></i> Stop
-                </button>
-                <button type="button" class="btn btn-secondary vm-action" data-action="reset" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
-                    <i class="fas fa-redo"></i> Reset
-                </button>
-            {% else %}
-                <button type="button" class="btn btn-success vm-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vmid }}">
-                    <i class="fas fa-play"></i> Start
-                </button>
-            {% endif %}
-        </div>
     </div>
 </div>
 
