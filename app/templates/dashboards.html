@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Custom Dashboards{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-tachometer-alt"></i> Custom Dashboards</h1>
+        <p class="text-muted">Create and manage custom dashboards with selected metrics</p>
+    </div>
+    <div class="col-auto">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDashboardModal">
+            <i class="fas fa-plus-circle me-2"></i>Create New Dashboard
+        </button>
+    </div>
+</div>
+
+<!-- Dashboard List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Your Dashboards</h5>
+            </div>
+            <div class="card-body">
+                {% if dashboards %}
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        {% for dashboard in dashboards %}
+                        <div class="col">
+                            <div class="card h-100 hover-shadow">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ dashboard.name }}</h5>
+                                    <p class="card-text text-muted">{{ dashboard.description }}</p>
+                                    <div class="mt-auto">
+                                        <span class="badge bg-primary me-1">{{ dashboard.widgets|length }} Widgets</span>
+                                        <span class="badge bg-secondary">Created: {{ dashboard.created_at.strftime('%Y-%m-%d') }}</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="btn-group w-100">
+                                        <a href="{{ url_for('view_dashboard', dashboard_id=dashboard.id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                        <a href="{{ url_for('edit_dashboard', dashboard_id=dashboard.id) }}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-edit me-1"></i>Edit
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteDashboardModal" 
+                                                data-dashboard-id="{{ dashboard.id }}"
+                                                data-dashboard-name="{{ dashboard.name }}">
+                                            <i class="fas fa-trash-alt me-1"></i>Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-chart-line fa-4x text-muted mb-3"></i>
+                        <h4>No Custom Dashboards Yet</h4>
+                        <p>Create your first dashboard to monitor important metrics at a glance.</p>
+                        <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#createDashboardModal">
+                            <i class="fas fa-plus-circle me-2"></i>Create New Dashboard
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Templates Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Dashboard Templates</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#templatesCollapse">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="collapse" id="templatesCollapse">
+                <div class="card-body">
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        <!-- Resource Overview Template -->
+                        <div class="col">
+                            <div class="card h-100 hover-shadow border-primary">
+                                <div class="card-body">
+                                    <h5 class="card-title">Resource Overview</h5>
+                                    <p class="card-text">Comprehensive view of CPU, memory, and storage usage across all hosts.</p>
+                                    <div class="mt-3">
+                                        <span class="badge bg-primary me-1">System Health</span>
+                                        <span class="badge bg-secondary">6 Widgets</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <button type="button" class="btn btn-primary w-100" data-template="resource-overview">
+                                        <i class="fas fa-plus-circle me-1"></i>Create from Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- VM Performance Template -->
+                        <div class="col">
+                            <div class="card h-100 hover-shadow border-success">
+                                <div class="card-body">
+                                    <h5 class="card-title">VM Performance</h5>
+                                    <p class="card-text">Monitor performance metrics of virtual machines with customizable thresholds.</p>
+                                    <div class="mt-3">
+                                        <span class="badge bg-success me-1">VM Monitoring</span>
+                                        <span class="badge bg-secondary">5 Widgets</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <button type="button" class="btn btn-success w-100" data-template="vm-performance">
+                                        <i class="fas fa-plus-circle me-1"></i>Create from Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Storage Analysis Template -->
+                        <div class="col">
+                            <div class="card h-100 hover-shadow border-info">
+                                <div class="card-body">
+                                    <h5 class="card-title">Storage Analysis</h5>
+                                    <p class="card-text">Detailed analysis of storage usage, trends, and potential issues.</p>
+                                    <div class="mt-3">
+                                        <span class="badge bg-info me-1">Storage</span>
+                                        <span class="badge bg-secondary">4 Widgets</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <button type="button" class="btn btn-info w-100" data-template="storage-analysis">
+                                        <i class="fas fa-plus-circle me-1"></i>Create from Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Dashboard Modal -->
+<div class="modal fade" id="createDashboardModal" tabindex="-1" aria-labelledby="createDashboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDashboardModalLabel">Create New Dashboard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('create_dashboard') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="dashboardName" class="form-label">Dashboard Name</label>
+                        <input type="text" class="form-control" id="dashboardName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dashboardDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="dashboardDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Layout</label>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="layout" id="layoutGrid" value="grid" checked>
+                                    <label class="form-check-label" for="layoutGrid">
+                                        Grid Layout
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="layout" id="layoutFreeform" value="freeform">
+                                    <label class="form-check-label" for="layoutFreeform">
+                                        Free-form Layout
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Refresh Interval</label>
+                        <select class="form-select" name="refresh_interval">
+                            <option value="0">No auto-refresh</option>
+                            <option value="30" selected>30 seconds</option>
+                            <option value="60">1 minute</option>
+                            <option value="300">5 minutes</option>
+                            <option value="600">10 minutes</option>
+                            <option value="1800">30 minutes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Dashboard</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Dashboard Modal -->
+<div class="modal fade" id="deleteDashboardModal" tabindex="-1" aria-labelledby="deleteDashboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteDashboardModalLabel">Delete Dashboard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the dashboard "<span id="dashboardToDelete"></span>"?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_dashboard') }}" method="post" id="deleteDashboardForm">
+                    <input type="hidden" name="dashboard_id" id="deleteDashboardId">
+                    <button type="submit" class="btn btn-danger">Delete Dashboard</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Dashboard template buttons
+        const templateButtons = document.querySelectorAll('[data-template]');
+        templateButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const templateName = this.getAttribute('data-template');
+                
+                // Send request to create dashboard from template
+                fetch(`{{ url_for('create_dashboard_from_template') }}?template=${templateName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Dashboard created successfully!', 'success');
+                        // Redirect to the new dashboard
+                        window.location.href = data.redirect;
+                    } else {
+                        showNotification(`Error: ${data.error}`, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('An unexpected error occurred', 'danger');
+                });
+            });
+        });
+        
+        // Delete dashboard modal handler
+        const deleteDashboardModal = document.getElementById('deleteDashboardModal');
+        if (deleteDashboardModal) {
+            deleteDashboardModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const dashboardId = button.getAttribute('data-dashboard-id');
+                const dashboardName = button.getAttribute('data-dashboard-name');
+                
+                const dashboardToDeleteElement = document.getElementById('dashboardToDelete');
+                const deleteDashboardIdInput = document.getElementById('deleteDashboardId');
+                
+                dashboardToDeleteElement.textContent = dashboardName;
+                deleteDashboardIdInput.value = dashboardId;
+            });
+        }
+    });
+</script>
+{% endblock %}

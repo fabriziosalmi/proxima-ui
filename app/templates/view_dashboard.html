@@ -1,0 +1,658 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dashboard.name }} - Proxmox UI{% endblock %}
+
+{% block styles %}
+<style>
+    .dashboard-container {
+        min-height: 600px;
+    }
+    
+    .widget {
+        margin-bottom: 20px;
+        border-radius: 6px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .widget-header {
+        padding: 12px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .widget-body {
+        padding: 15px;
+    }
+    
+    .widget-chart-container {
+        height: 250px;
+    }
+    
+    .widget-footer {
+        padding: 8px 15px;
+        font-size: 0.85rem;
+        border-top: 1px solid rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .drag-handle {
+        cursor: move;
+    }
+    
+    .dashboard-toolbar {
+        margin-bottom: 20px;
+    }
+    
+    .alert-threshold-exceeded {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .alert-threshold-exceeded::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
+        animation: alertPulse 1.5s infinite;
+    }
+    
+    @keyframes alertPulse {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3 align-items-center">
+    <div class="col">
+        <h1>{{ dashboard.name }}</h1>
+        <p class="text-muted">{{ dashboard.description }}</p>
+    </div>
+    <div class="col-auto">
+        <div class="btn-group">
+            <a href="{{ url_for('edit_dashboard', dashboard_id=dashboard.id) }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit me-1"></i>Edit Dashboard
+            </a>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#dashboardSettingsModal">
+                <i class="fas fa-cog me-1"></i>Settings
+            </button>
+            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#generateReportModal">
+                <i class="fas fa-file-export me-1"></i>Generate Report
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-toolbar d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="autoRefreshToggle" {% if dashboard.refresh_interval > 0 %}checked{% endif %}>
+            <label class="form-check-label" for="autoRefreshToggle">Auto-Refresh</label>
+        </div>
+        <span class="text-muted ms-2 small" id="refreshStatus">
+            {% if dashboard.refresh_interval > 0 %}
+                Refreshing every {{ dashboard.refresh_interval }} seconds
+            {% endif %}
+        </span>
+    </div>
+    <div>
+        <button class="btn btn-sm btn-primary" id="refreshNowBtn">
+            <i class="fas fa-sync-alt me-1"></i>Refresh Now
+        </button>
+        <span class="ms-2 text-muted small">Last updated: <span id="lastUpdated">{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</span></span>
+    </div>
+</div>
+
+<!-- Alert Container for resource alerts -->
+<div id="dashboard-alerts-container"></div>
+
+<!-- Dashboard Container -->
+<div class="dashboard-container" data-refresh="{{ dashboard.refresh_interval }}">
+    <div class="row" id="dashboardGrid">
+        {% for widget in dashboard.widgets %}
+        <div class="col-md-{{ widget.width }}" id="widget-{{ widget.id }}" data-widget-id="{{ widget.id }}">
+            <div class="card widget">
+                <div class="card-header widget-header">
+                    <h5 class="mb-0">
+                        {% if widget.icon %}<i class="{{ widget.icon }} me-2"></i>{% endif %}
+                        {{ widget.title }}
+                    </h5>
+                    <div class="widget-controls">
+                        {% if widget.has_settings %}
+                        <button type="button" class="btn btn-sm btn-link widget-settings" data-widget-id="{{ widget.id }}">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-sm btn-link widget-refresh" data-widget-id="{{ widget.id }}">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body widget-body" id="widget-body-{{ widget.id }}">
+                    {% if widget.type == 'chart' %}
+                    <div class="widget-chart-container">
+                        <canvas id="chart-{{ widget.id }}"></canvas>
+                    </div>
+                    {% elif widget.type == 'status' %}
+                    <div class="widget-status-container">
+                        <!-- Status widget content -->
+                        <div class="d-flex justify-content-between">
+                            {% for status in widget.data %}
+                            <div class="text-center">
+                                <h3 class="mb-0 {% if status.critical %}text-danger{% elif status.warning %}text-warning{% endif %}">
+                                    {{ status.value }}
+                                </h3>
+                                <div class="text-muted small">{{ status.label }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% elif widget.type == 'table' %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    {% for header in widget.data.headers %}
+                                    <th>{{ header }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in widget.data.rows %}
+                                <tr>
+                                    {% for cell in row %}
+                                    <td>{{ cell }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% elif widget.type == 'gauge' %}
+                    <div class="text-center">
+                        <div class="gauge-container" id="gauge-{{ widget.id }}"></div>
+                        <div class="gauge-value mt-2">
+                            <span class="h3">{{ widget.data.value }}{{ widget.data.unit }}</span>
+                            <div class="small text-muted">{{ widget.data.label }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer widget-footer text-muted">
+                    <div>{{ widget.description }}</div>
+                    <div>Last updated: <span class="widget-last-updated">{{ now.strftime('%H:%M:%S') }}</span></div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Dashboard Settings Modal -->
+<div class="modal fade" id="dashboardSettingsModal" tabindex="-1" aria-labelledby="dashboardSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dashboardSettingsModalLabel">Dashboard Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="dashboardSettingsForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="settingsDashboardName" class="form-label">Dashboard Name</label>
+                        <input type="text" class="form-control" id="settingsDashboardName" name="name" value="{{ dashboard.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="settingsDashboardDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="settingsDashboardDescription" name="description" rows="3">{{ dashboard.description }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Auto-Refresh Interval</label>
+                        <select class="form-select" id="settingsRefreshInterval" name="refresh_interval">
+                            <option value="0" {% if dashboard.refresh_interval == 0 %}selected{% endif %}>No auto-refresh</option>
+                            <option value="30" {% if dashboard.refresh_interval == 30 %}selected{% endif %}>30 seconds</option>
+                            <option value="60" {% if dashboard.refresh_interval == 60 %}selected{% endif %}>1 minute</option>
+                            <option value="300" {% if dashboard.refresh_interval == 300 %}selected{% endif %}>5 minutes</option>
+                            <option value="600" {% if dashboard.refresh_interval == 600 %}selected{% endif %}>10 minutes</option>
+                            <option value="1800" {% if dashboard.refresh_interval == 1800 %}selected{% endif %}>30 minutes</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Default Time Range</label>
+                        <select class="form-select" id="settingsDefaultTimeRange" name="default_time_range">
+                            <option value="hour" {% if dashboard.default_time_range == 'hour' %}selected{% endif %}>Last Hour</option>
+                            <option value="day" {% if dashboard.default_time_range == 'day' %}selected{% endif %}>Last Day</option>
+                            <option value="week" {% if dashboard.default_time_range == 'week' %}selected{% endif %}>Last Week</option>
+                            <option value="month" {% if dashboard.default_time_range == 'month' %}selected{% endif %}>Last Month</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveDashboardSettings">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Report Modal -->
+<div class="modal fade" id="generateReportModal" tabindex="-1" aria-labelledby="generateReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateReportModalLabel">Generate Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="generateReportForm" action="{{ url_for('generate_report', dashboard_id=dashboard.id) }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Report Format</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="report_format" id="formatPdf" value="pdf" checked>
+                            <label class="form-check-label" for="formatPdf">
+                                PDF Document
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="report_format" id="formatCsv" value="csv">
+                            <label class="form-check-label" for="formatCsv">
+                                CSV (Data only)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Time Range</label>
+                        <select class="form-select" name="time_range">
+                            <option value="hour">Last Hour</option>
+                            <option value="day">Last Day</option>
+                            <option value="week" selected>Last Week</option>
+                            <option value="month">Last Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 date-range d-none">
+                        <div class="row">
+                            <div class="col">
+                                <label class="form-label">Start Date</label>
+                                <input type="date" class="form-control" name="start_date">
+                            </div>
+                            <div class="col">
+                                <label class="form-label">End Date</label>
+                                <input type="date" class="form-control" name="end_date">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reportComment" class="form-label">Report Comment</label>
+                        <textarea class="form-control" id="reportComment" name="comment" rows="2" placeholder="Optional comment to include in the report"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeAlerts" name="include_alerts" checked>
+                            <label class="form-check-label" for="includeAlerts">
+                                Include Alert History
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="scheduleReport" name="schedule_report">
+                            <label class="form-check-label" for="scheduleReport">
+                                Schedule Recurring Report
+                            </label>
+                        </div>
+                    </div>
+                    <div class="schedule-options d-none">
+                        <div class="mb-3">
+                            <label class="form-label">Frequency</label>
+                            <select class="form-select" name="schedule_frequency">
+                                <option value="daily">Daily</option>
+                                <option value="weekly" selected>Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email Recipients</label>
+                            <input type="text" class="form-control" name="email_recipients" placeholder="email@example.com, another@example.com">
+                            <div class="form-text">Separate multiple emails with commas</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Generate Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gauge-chart@0.5.3/dist/bundle.js"></script>
+<script>
+    // Dashboard data
+    const dashboardData = {{ dashboard_data|safe }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize charts and gauges
+        initializeWidgets();
+        
+        // Set up auto-refresh
+        setupAutoRefresh();
+        
+        // Set up dashboard settings form
+        setupDashboardSettingsForm();
+        
+        // Set up report generation form
+        setupReportForm();
+        
+        // Refresh now button
+        document.getElementById('refreshNowBtn').addEventListener('click', function() {
+            refreshDashboard();
+        });
+        
+        // Auto-refresh toggle
+        document.getElementById('autoRefreshToggle').addEventListener('change', function() {
+            const isEnabled = this.checked;
+            toggleAutoRefresh(isEnabled);
+        });
+    });
+    
+    function initializeWidgets() {
+        // Initialize chart widgets
+        dashboardData.widgets.forEach(widget => {
+            if (widget.type === 'chart') {
+                initializeChart(widget);
+            } else if (widget.type === 'gauge') {
+                initializeGauge(widget);
+            }
+        });
+    }
+    
+    function initializeChart(widget) {
+        const ctx = document.getElementById(`chart-${widget.id}`).getContext('2d');
+        
+        // Create Chart.js chart
+        new Chart(ctx, {
+            type: widget.chart_type || 'line',
+            data: widget.data,
+            options: widget.options || {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                }
+            }
+        });
+    }
+    
+    function initializeGauge(widget) {
+        const element = document.getElementById(`gauge-${widget.id}`);
+        const gaugeOptions = {
+            arcWidth: 0.3,
+            width: 200,
+            height: 160,
+            centerLabelStyle: {
+                fontSize: '25px',
+                color: '#333'
+            }
+        };
+        
+        // Create GaugeChart
+        GaugeChart.gaugeChart(element, gaugeOptions)
+            .updateNeedle(widget.data.value / 100);
+    }
+    
+    function setupAutoRefresh() {
+        const dashboardContainer = document.querySelector('.dashboard-container');
+        const refreshInterval = parseInt(dashboardContainer.getAttribute('data-refresh'));
+        
+        if (refreshInterval > 0) {
+            // Set up the refresh timer
+            window.dashboardRefreshTimer = setInterval(() => {
+                refreshDashboard();
+            }, refreshInterval * 1000);
+            
+            // Update UI
+            document.getElementById('refreshStatus').textContent = `Refreshing every ${refreshInterval} seconds`;
+        } else {
+            document.getElementById('refreshStatus').textContent = 'Auto-refresh disabled';
+        }
+    }
+    
+    function toggleAutoRefresh(enabled) {
+        // Clear existing timer if any
+        if (window.dashboardRefreshTimer) {
+            clearInterval(window.dashboardRefreshTimer);
+            window.dashboardRefreshTimer = null;
+        }
+        
+        if (enabled) {
+            // Get current interval from settings
+            const interval = parseInt(document.getElementById('settingsRefreshInterval').value);
+            if (interval > 0) {
+                window.dashboardRefreshTimer = setInterval(() => {
+                    refreshDashboard();
+                }, interval * 1000);
+                document.getElementById('refreshStatus').textContent = `Refreshing every ${interval} seconds`;
+            }
+        } else {
+            document.getElementById('refreshStatus').textContent = 'Auto-refresh disabled';
+        }
+        
+        // Save setting to dashboard
+        saveDashboardSetting('refresh_interval', enabled ? document.getElementById('settingsRefreshInterval').value : '0');
+    }
+    
+    function refreshDashboard() {
+        // Show loading state
+        document.querySelector('.dashboard-container').classList.add('loading');
+        
+        // Fetch updated dashboard data
+        fetch(`{{ url_for('get_dashboard_data', dashboard_id=dashboard.id) }}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateWidgets(data.widgets);
+                    
+                    // Update last updated timestamp
+                    const now = new Date();
+                    document.getElementById('lastUpdated').textContent = now.toLocaleString();
+                    
+                    // Update each widget's timestamp
+                    document.querySelectorAll('.widget-last-updated').forEach(el => {
+                        el.textContent = now.toLocaleTimeString();
+                    });
+                } else {
+                    showNotification(`Error refreshing dashboard: ${data.error}`, 'danger');
+                }
+                
+                // Remove loading state
+                document.querySelector('.dashboard-container').classList.remove('loading');
+            })
+            .catch(error => {
+                console.error('Error refreshing dashboard:', error);
+                showNotification('Error refreshing dashboard data', 'danger');
+                document.querySelector('.dashboard-container').classList.remove('loading');
+            });
+    }
+    
+    function updateWidgets(widgetsData) {
+        widgetsData.forEach(widgetData => {
+            const widgetBody = document.getElementById(`widget-body-${widgetData.id}`);
+            if (!widgetBody) return;
+            
+            if (widgetData.type === 'chart') {
+                // Update chart data
+                const chartCanvas = document.getElementById(`chart-${widgetData.id}`);
+                const chart = Chart.getChart(chartCanvas);
+                
+                if (chart) {
+                    chart.data = widgetData.data;
+                    chart.update();
+                }
+            } else if (widgetData.type === 'status') {
+                // Update status widget
+                // Implementation depends on your status widget structure
+            } else if (widgetData.type === 'table') {
+                // Update table data
+                // Implementation depends on your table widget structure
+            } else if (widgetData.type === 'gauge') {
+                // Update gauge value
+                const gaugeElement = document.getElementById(`gauge-${widgetData.id}`);
+                if (gaugeElement && gaugeElement._gauge) {
+                    gaugeElement._gauge.updateNeedle(widgetData.data.value / 100);
+                }
+            }
+            
+            // Check for alerts
+            if (widgetData.alert) {
+                const widgetCard = widgetBody.closest('.widget');
+                widgetCard.classList.add('alert-threshold-exceeded');
+                
+                if (widgetData.alert.level === 'critical') {
+                    widgetCard.classList.add('border-danger');
+                } else if (widgetData.alert.level === 'warning') {
+                    widgetCard.classList.add('border-warning');
+                }
+                
+                // Show alert notification
+                const alertElement = document.createElement('div');
+                alertElement.className = `alert alert-${widgetData.alert.level === 'critical' ? 'danger' : 'warning'} alert-dismissible fade show`;
+                alertElement.innerHTML = `
+                    <strong>${widgetData.title}:</strong> ${widgetData.alert.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                document.getElementById('dashboard-alerts-container').appendChild(alertElement);
+                
+                // Initialize Bootstrap alert
+                new bootstrap.Alert(alertElement);
+            } else {
+                // Remove alert styling if previously alerted
+                const widgetCard = widgetBody.closest('.widget');
+                widgetCard.classList.remove('alert-threshold-exceeded', 'border-danger', 'border-warning');
+            }
+        });
+    }
+    
+    function setupDashboardSettingsForm() {
+        const form = document.getElementById('dashboardSettingsForm');
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const settings = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                refresh_interval: formData.get('refresh_interval'),
+                default_time_range: formData.get('default_time_range')
+            };
+            
+            // Save dashboard settings
+            fetch(`{{ url_for('update_dashboard', dashboard_id=dashboard.id) }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Dashboard settings saved successfully', 'success');
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('dashboardSettingsModal'));
+                    modal.hide();
+                    
+                    // Update UI with new settings
+                    document.querySelector('h1').textContent = settings.name;
+                    document.querySelector('p.text-muted').textContent = settings.description;
+                    
+                    // Update refresh interval if changed
+                    const currentInterval = parseInt(document.querySelector('.dashboard-container').getAttribute('data-refresh'));
+                    const newInterval = parseInt(settings.refresh_interval);
+                    
+                    if (currentInterval !== newInterval) {
+                        document.querySelector('.dashboard-container').setAttribute('data-refresh', newInterval);
+                        document.getElementById('autoRefreshToggle').checked = newInterval > 0;
+                        
+                        // Update auto-refresh
+                        toggleAutoRefresh(newInterval > 0);
+                    }
+                } else {
+                    showNotification(`Error saving settings: ${data.error}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred', 'danger');
+            });
+        });
+    }
+    
+    function saveDashboardSetting(setting, value) {
+        fetch(`{{ url_for('update_dashboard_setting', dashboard_id=dashboard.id) }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                setting: setting,
+                value: value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Error saving dashboard setting:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    function setupReportForm() {
+        const form = document.getElementById('generateReportForm');
+        
+        // Toggle custom date range visibility
+        const timeRangeSelect = form.querySelector('select[name="time_range"]');
+        const dateRangeDiv = form.querySelector('.date-range');
+        
+        timeRangeSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                dateRangeDiv.classList.remove('d-none');
+            } else {
+                dateRangeDiv.classList.add('d-none');
+            }
+        });
+        
+        // Toggle schedule options visibility
+        const scheduleCheckbox = document.getElementById('scheduleReport');
+        const scheduleOptionsDiv = form.querySelector('.schedule-options');
+        
+        scheduleCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                scheduleOptionsDiv.classList.remove('d-none');
+            } else {
+                scheduleOptionsDiv.classList.add('d-none');
+            }
+        });
+    }
+</script>
+{% endblock %}
