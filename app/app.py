@@ -2404,6 +2404,7 @@ def template_management(host_id, node):
         # Filter storages that can contain templates (vztmpl) and ISO images
         template_storages = [storage for storage in storages if 'vztmpl' in storage.get('content', '').split(',')]
         iso_storages = [storage for storage in storages if 'iso' in storage.get('content', '').split(',')]
+        vm_storages = [storage for storage in storages if 'images' in storage.get('content', '').split(',')]
         
         # Get existing templates
         templates = []
@@ -2428,14 +2429,26 @@ def template_management(host_id, node):
                 iso_images.extend(iso_list)
             except Exception as e:
                 print(f"Error getting ISO list from {storage['storage']}: {str(e)}")
+        
+        # Get VMs and containers for template creation
+        vms = []
+        containers = []
+        try:
+            vms = connection.nodes(node).qemu.get()
+            containers = connection.nodes(node).lxc.get()
+        except Exception as e:
+            print(f"Error getting VMs or containers: {str(e)}")
                 
         return render_template('template_management.html',
                             host_id=host_id,
                             node=node,
                             template_storages=template_storages,
                             iso_storages=iso_storages,
+                            vm_storages=vm_storages,
                             templates=templates,
-                            iso_images=iso_images)
+                            iso_images=iso_images,
+                            vms=vms,
+                            containers=containers)
     except Exception as e:
         flash(f"Failed to get template information: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
@@ -3735,6 +3748,234 @@ def search_resources():
                           search_storage=search_storage,
                           active_tab=active_tab,
                           available_hosts=list(available_hosts))
+
+@app.route('/host/<host_id>/<node>/templates/create_vm_template', methods=['POST'])
+def create_vm_template(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    vm_id = request.form.get('vm_id')
+    storage = request.form.get('storage')
+    add_version = request.form.get('add_version') == 'true'
+    
+    if not vm_id or not storage:
+        flash("VM ID and storage are required", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get VM info to check if it's running and to get its name
+        vm_info = connection.nodes(node).qemu(vm_id).status.current.get()
+        
+        # Check if VM is running - if so, warn the user
+        if vm_info.get('status') == 'running':
+            flash("Warning: Creating a template from a running VM may result in data corruption. It's recommended to shut down the VM first.", 'warning')
+        
+        # Start the template conversion
+        vm_name = vm_info.get('name', f'vm-{vm_id}')
+        
+        # If version flag is set, add version suffix
+        if add_version:
+            # Find existing templates with similar names to determine version number
+            all_templates = []
+            template_storages = [s for s in connection.nodes(node).storage.get() if 'images' in s.get('content', '').split(',')]
+            
+            for template_storage in template_storages:
+                try:
+                    content = connection.nodes(node).storage(template_storage['storage']).content.get()
+                    vm_templates = [item for item in content if item.get('content') == 'images' and item.get('format') == 'qcow2']
+                    all_templates.extend(vm_templates)
+                except Exception:
+                    continue
+            
+            # Find highest existing version for this template name
+            version = 1
+            for template in all_templates:
+                template_name = template.get('volid', '').split('/')[-1]
+                if template_name.startswith(f"{vm_name}-v") and template_name[len(f"{vm_name}-v"):].isdigit():
+                    existing_version = int(template_name[len(f"{vm_name}-v"):])
+                    if existing_version >= version:
+                        version = existing_version + 1
+            
+            template_name = f"{vm_name}-v{version}"
+        else:
+            template_name = vm_name
+        
+        # Convert the VM to a template
+        # First, create a backup/clone to the target storage if different
+        if storage != vm_info.get('storage', ''):
+            # Clone the VM to the target storage
+            connection.nodes(node).qemu(vm_id).clone.post(
+                newid=vm_id,  # Clone to same ID
+                name=template_name,
+                target=storage,
+                full=1  # Full clone
+            )
+        
+        # Now set the template flag
+        connection.nodes(node).qemu(vm_id).config.post(
+            template=1
+        )
+        
+        flash(f"VM {vm_id} converted to template '{template_name}' successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create VM template: {str(e)}", 'danger')
+    
+    return redirect(url_for('template_management', host_id=host_id, node=node))
+
+@app.route('/host/<host_id>/<node>/templates/create_ct_template', methods=['POST'])
+def create_ct_template(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    ct_id = request.form.get('ct_id')
+    storage = request.form.get('storage')
+    add_version = request.form.get('add_version') == 'true'
+    
+    if not ct_id or not storage:
+        flash("Container ID and storage are required", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get container info to check if it's running and to get its name
+        container_info = connection.nodes(node).lxc(ct_id).status.current.get()
+        
+        # Check if container is running - if so, warn the user
+        if container_info.get('status') == 'running':
+            flash("Warning: Creating a template from a running container may result in data corruption. It's recommended to shut down the container first.", 'warning')
+        
+        # Start the template creation - for containers, we create a backup that can be used as a template
+        container_name = container_info.get('name', f'ct-{ct_id}')
+        
+        # If version flag is set, add version suffix
+        if add_version:
+            # Find existing templates with similar names to determine version number
+            all_templates = []
+            template_storages = [s for s in connection.nodes(node).storage.get() if 'vztmpl' in s.get('content', '').split(',')]
+            
+            for template_storage in template_storages:
+                try:
+                    content = connection.nodes(node).storage(template_storage['storage']).content.get()
+                    ct_templates = [item for item in content if item.get('content') == 'vztmpl']
+                    all_templates.extend(ct_templates)
+                except Exception:
+                    continue
+            
+            # Find highest existing version for this template name
+            version = 1
+            for template in all_templates:
+                template_name = template.get('volid', '').split('/')[-1]
+                if template_name.startswith(f"{container_name}-v") and template_name[len(f"{container_name}-v"):].isdigit():
+                    existing_version = int(template_name[len(f"{container_name}-v"):])
+                    if existing_version >= version:
+                        version = existing_version + 1
+            
+            template_name = f"{container_name}-v{version}"
+        else:
+            template_name = container_name
+        
+        # Create a backup of the container to be used as template
+        # Use vzdump API to create the backup
+        connection.nodes(node).vzdump.post(
+            vmid=ct_id,
+            storage=storage,
+            mode='snapshot',
+            compress='zstd',  # Use zstd compression
+            remove=0,  # Don't remove old backups
+            stdout=1,  # Output to stdout
+            filename=f"{template_name}.tar.zst"  # Custom filename
+        )
+        
+        flash(f"Started creating template from container {ct_id} as '{template_name}.tar.zst'", 'success')
+    except Exception as e:
+        flash(f"Failed to create container template: {str(e)}", 'danger')
+    
+    return redirect(url_for('template_management', host_id=host_id, node=node))
+
+@app.route('/host/<host_id>/<node>/templates/clone', methods=['POST'])
+def clone_template(host_id, node):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    source_template = request.form.get('source_template')
+    source_storage = request.form.get('source_storage')
+    target_name = request.form.get('target_name')
+    target_storage = request.form.get('target_storage')
+    
+    if not source_template or not target_name or not source_storage or not target_storage:
+        flash("Missing required parameters", 'danger')
+        return redirect(url_for('template_management', host_id=host_id, node=node))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Clone the template to the new name and target storage
+        # This requires copying the template file
+        
+        # First, check if source and target storage are the same
+        if source_storage == target_storage:
+            # Use the content copy API if available, otherwise use a temporary VM
+            try:
+                # Try to copy directly
+                connection.nodes(node).storage(source_storage).content.post(
+                    content='vztmpl',
+                    target=target_storage,
+                    source=source_template
+                )
+                flash(f"Template cloned to '{target_name}' successfully", 'success')
+            except Exception as copy_error:
+                flash(f"Failed to clone template directly: {str(copy_error)}", 'warning')
+                
+                # Need to use a fallback approach - download and re-upload
+                # First get download URL for the source template
+                download_url = connection.nodes(node).storage(source_storage).content(source_template).get_download_url()
+                
+                # Download the template to a temporary file
+                import tempfile
+                import requests
+                import shutil
+                
+                with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                    response = requests.get(download_url, stream=True)
+                    shutil.copyfileobj(response.raw, tmp_file)
+                    tmp_filename = tmp_file.name
+                
+                # Upload the template with the new name
+                upload_url = connection.nodes(node).storage(target_storage).get_upload_url(content='vztmpl')
+                
+                with open(tmp_filename, 'rb') as f:
+                    upload_response = requests.post(
+                        upload_url,
+                        files={"filename": (target_name, f.read())},
+                        verify=False
+                    )
+                    
+                    if upload_response.status_code == 200:
+                        flash(f"Template cloned to '{target_name}' successfully using download/upload method", 'success')
+                    else:
+                        flash(f"Failed to clone template: Upload error ({upload_response.status_code})", 'danger')
+                
+                # Remove the temporary file
+                import os
+                os.unlink(tmp_filename)
+        else:
+            # Different storage, use copy API
+            connection.nodes(node).storage(source_storage).content(source_template).copy.post(
+                target=target_storage,
+                target_volid=f"{target_storage}:vztmpl/{target_name}"
+            )
+            flash(f"Template cloned to '{target_name}' on storage '{target_storage}' successfully", 'success')
+            
+    except Exception as e:
+        flash(f"Failed to clone template: {str(e)}", 'danger')
+    
+    return redirect(url_for('template_management', host_id=host_id, node=node))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
