@@ -55,6 +55,72 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('page-loading-indicator').classList.add('d-none');
         document.querySelector('.content-container')?.classList.remove('opacity-50');
     });
+
+    // Add keyboard shortcut (Ctrl+K or Command+K) for search modal
+    document.addEventListener('keydown', function(e) {
+        // Check if Ctrl+K or Command+K was pressed
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            
+            // Show search modal
+            const searchModal = new bootstrap.Modal(document.getElementById('searchModal'));
+            searchModal.show();
+            
+            // Focus on search input after modal is shown
+            document.getElementById('searchModal').addEventListener('shown.bs.modal', function() {
+                document.getElementById('modal-global-search').focus();
+            }, { once: true });
+        }
+    });
+    
+    // Initialize search modal auto focus
+    const searchModal = document.getElementById('searchModal');
+    if (searchModal) {
+        searchModal.addEventListener('shown.bs.modal', function() {
+            document.getElementById('modal-global-search').focus();
+        });
+        
+        // Submit search form on Enter key
+        const searchInput = document.getElementById('modal-global-search');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('searchForm').submit();
+                }
+            });
+        }
+    }
+    
+    // Improve modal backdrops with blur effect
+    const modalBackdrops = document.querySelectorAll('.modal-backdrop');
+    modalBackdrops.forEach(backdrop => {
+        backdrop.style.backdropFilter = 'blur(4px)';
+        backdrop.style.webkitBackdropFilter = 'blur(4px)';
+    });
+    
+    // Initialize proper theme handling for modals
+    const updateModalTheme = () => {
+        const theme = document.body.getAttribute('data-bs-theme');
+        const modals = document.querySelectorAll('.modal');
+        
+        modals.forEach(modal => {
+            if (theme === 'dark') {
+                modal.classList.add('modal-dark');
+            } else {
+                modal.classList.remove('modal-dark');
+            }
+        });
+    };
+    
+    // Update modal theme when theme changes
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', updateModalTheme);
+    }
+    
+    // Initial modal theme setup
+    updateModalTheme();
 });
 
 /**
@@ -255,26 +321,13 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
     const loadingElement = document.getElementById(`${type}-${vmid}-status`);
     const originalContent = loadingElement ? loadingElement.innerHTML : '';
     
-    // Show loading indicator
+    // Show loading indicator in element
     if (loadingElement) {
         loadingElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
     }
     
-    // Create full-screen loading overlay
-    const loadingOverlay = document.createElement('div');
-    loadingOverlay.className = 'loading-overlay';
-    
-    // Apply dark theme class if needed
-    if (document.body.getAttribute('data-bs-theme') === 'dark') {
-        loadingOverlay.classList.add('theme-dark');
-    }
-    
-    loadingOverlay.innerHTML = `
-        <div class="loading-spinner"></div>
-        <p class="loading-message">Processing ${action}...</p>
-    `;
-    
-    document.body.appendChild(loadingOverlay);
+    // Show full-screen loading overlay
+    showLoadingOverlay(`Processing ${action}...`);
     
     const formData = new FormData();
     formData.append('host_id', hostId);
@@ -303,6 +356,9 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
             if (loadingElement) {
                 loadingElement.innerHTML = originalContent;
             }
+            
+            // Hide loading overlay
+            hideLoadingOverlay();
         }
     })
     .catch(error => {
@@ -312,10 +368,9 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
         if (loadingElement) {
             loadingElement.innerHTML = originalContent;
         }
-    })
-    .finally(() => {
-        // Remove loading overlay
-        document.querySelectorAll('.loading-overlay').forEach(el => el.remove());
+        
+        // Hide loading overlay
+        hideLoadingOverlay();
     });
 }
 
@@ -330,21 +385,8 @@ function performBulkAction(hostId, action, items, type = 'vm') {
         loadingElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing bulk action...';
     }
     
-    // Create full-screen loading overlay
-    const loadingOverlay = document.createElement('div');
-    loadingOverlay.className = 'loading-overlay';
-    
-    // Apply dark theme class if needed
-    if (document.body.getAttribute('data-bs-theme') === 'dark') {
-        loadingOverlay.classList.add('theme-dark');
-    }
-    
-    loadingOverlay.innerHTML = `
-        <div class="loading-spinner"></div>
-        <p class="loading-message">Processing bulk ${action}...</p>
-    `;
-    
-    document.body.appendChild(loadingOverlay);
+    // Show full-screen loading overlay
+    showLoadingOverlay(`Processing bulk ${action}...`);
     
     const formData = new FormData();
     formData.append('host_id', hostId);
@@ -379,6 +421,9 @@ function performBulkAction(hostId, action, items, type = 'vm') {
             if (loadingElement) {
                 loadingElement.innerHTML = '';
             }
+            
+            // Hide loading overlay
+            hideLoadingOverlay();
         }
     })
     .catch(error => {
@@ -388,10 +433,9 @@ function performBulkAction(hostId, action, items, type = 'vm') {
         if (loadingElement) {
             loadingElement.innerHTML = '';
         }
-    })
-    .finally(() => {
-        // Remove loading overlay
-        document.querySelectorAll('.loading-overlay').forEach(el => el.remove());
+        
+        // Hide loading overlay
+        hideLoadingOverlay();
     });
 }
 
@@ -720,3 +764,53 @@ window.addEventListener('pageshow', function(event) {
         });
     }
 });
+
+/**
+ * Enhanced loading overlay management
+ */
+function showLoadingOverlay(message = 'Loading...') {
+    // Create loading overlay if it doesn't exist
+    let overlay = document.querySelector('.loading-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+        
+        // Apply theme class if needed
+        if (document.body.getAttribute('data-bs-theme') === 'dark') {
+            overlay.classList.add('theme-dark');
+        }
+        
+        overlay.innerHTML = `
+            <div class="loading-spinner"></div>
+            <p class="loading-message">${message}</p>
+        `;
+        
+        document.body.appendChild(overlay);
+    } else {
+        // Update existing overlay
+        const messageElem = overlay.querySelector('.loading-message');
+        if (messageElem) {
+            messageElem.textContent = message;
+        }
+        overlay.classList.remove('d-none');
+    }
+    
+    // Prevent scrolling on body
+    document.body.style.overflow = 'hidden';
+    
+    return overlay;
+}
+
+function hideLoadingOverlay() {
+    const overlay = document.querySelector('.loading-overlay');
+    if (overlay) {
+        // Add fade-out animation
+        overlay.style.opacity = '0';
+        
+        // Remove after animation
+        setTimeout(() => {
+            overlay.remove();
+            document.body.style.overflow = '';
+        }, 300);
+    }
+}

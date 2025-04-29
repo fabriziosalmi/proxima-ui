@@ -3,387 +3,547 @@
 {% block title %}Proxmox UI - Search Results{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-4 align-items-center">
     <div class="col">
         <h2><i class="fas fa-search me-2"></i>Search Results</h2>
         <p class="text-muted">Search results for "{{ query }}"</p>
     </div>
+    <div class="col-auto">
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+            <i class="fas fa-filter me-1"></i> Advanced Filters
+        </button>
+    </div>
 </div>
 
-<!-- Search Filters -->
+<!-- Active Filters Display -->
+{% if status or resource_type or selected_host_id or tag %}
 <div class="row mb-4">
     <div class="col-12">
+        <div class="card border-primary">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center">
+                    <strong class="me-2"><i class="fas fa-filter me-1"></i> Active Filters:</strong>
+                    {% if status %}
+                    <span class="badge bg-primary me-2">Status: {{ status }}</span>
+                    {% endif %}
+                    {% if resource_type %}
+                    <span class="badge bg-primary me-2">Type: {{ resource_type }}</span>
+                    {% endif %}
+                    {% if selected_host_id %}
+                    <span class="badge bg-primary me-2">Host: {{ selected_host_id }}</span>
+                    {% endif %}
+                    {% if tag %}
+                    <span class="badge bg-primary me-2">Tag: {{ tag }}</span>
+                    {% endif %}
+                    <a href="{{ url_for('search', q=query) }}" class="ms-auto btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> Clear All Filters
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Results Section -->
+<div class="row">
+    <div class="col-12">
         <div class="card">
-            <div class="card-header">
-                <h5>Advanced Filters</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <ul class="nav nav-tabs card-header-tabs" id="resultsTab" role="tablist">
+                    {% if search_vms %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if active_tab == 'vms' %}active{% endif %}" 
+                                id="vms-tab" data-bs-toggle="tab" data-bs-target="#vms-tab-pane" 
+                                type="button" role="tab" aria-controls="vms-tab-pane" aria-selected="true">
+                            <i class="fas fa-desktop me-1"></i> Virtual Machines <span class="badge bg-secondary">{{ vm_results|length }}</span>
+                        </button>
+                    </li>
+                    {% endif %}
+                    
+                    {% if search_containers %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if active_tab == 'containers' %}active{% endif %}" 
+                                id="containers-tab" data-bs-toggle="tab" data-bs-target="#containers-tab-pane" 
+                                type="button" role="tab" aria-controls="containers-tab-pane" aria-selected="false">
+                            <i class="fas fa-cube me-1"></i> Containers <span class="badge bg-secondary">{{ container_results|length }}</span>
+                        </button>
+                    </li>
+                    {% endif %}
+                    
+                    {% if search_nodes %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if active_tab == 'nodes' %}active{% endif %}" 
+                                id="nodes-tab" data-bs-toggle="tab" data-bs-target="#nodes-tab-pane" 
+                                type="button" role="tab" aria-controls="nodes-tab-pane" aria-selected="false">
+                            <i class="fas fa-server me-1"></i> Nodes <span class="badge bg-secondary">{{ node_results|length }}</span>
+                        </button>
+                    </li>
+                    {% endif %}
+                    
+                    {% if search_storage %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if active_tab == 'storage' %}active{% endif %}" 
+                                id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage-tab-pane" 
+                                type="button" role="tab" aria-controls="storage-tab-pane" aria-selected="false">
+                            <i class="fas fa-hdd me-1"></i> Storage <span class="badge bg-secondary">{{ storage_results|length }}</span>
+                        </button>
+                    </li>
+                    {% endif %}
+                </ul>
+                <button class="btn btn-sm btn-primary" id="refreshResultsBtn">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('search') }}" method="get" class="row g-3">
-                    <input type="hidden" name="q" value="{{ query }}">
-                    
-                    <div class="col-md-3">
-                        <div class="form-floating">
-                            <select class="form-select" id="statusFilter" name="status">
-                                <option value="" {% if not status %}selected{% endif %}>All</option>
-                                <option value="running" {% if status == 'running' %}selected{% endif %}>Running</option>
-                                <option value="stopped" {% if status == 'stopped' %}selected{% endif %}>Stopped</option>
-                            </select>
-                            <label for="statusFilter">Status</label>
+                <div class="tab-content" id="resultsTabContent">
+                    <!-- VM Results -->
+                    {% if search_vms %}
+                    <div class="tab-pane fade {% if active_tab == 'vms' %}show active{% endif %}" 
+                         id="vms-tab-pane" role="tabpanel" aria-labelledby="vms-tab">
+                        {% if vm_results %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Host</th>
+                                        <th>Node</th>
+                                        <th>VMID</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                        <th>CPU</th>
+                                        <th>Memory</th>
+                                        <th>Storage</th>
+                                        <th>Tags</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vm in vm_results %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('host_details', host_id=vm.host_id) }}" class="fw-medium text-decoration-none">
+                                                {{ vm.host_id }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('node_details', host_id=vm.host_id, node=vm.node) }}" class="fw-medium text-decoration-none">
+                                                {{ vm.node }}
+                                            </a>
+                                        </td>
+                                        <td>{{ vm.vmid }}</td>
+                                        <td>{{ vm.name }}</td>
+                                        <td>
+                                            {% if vm.status == 'running' %}
+                                            <span class="badge bg-success">Running</span>
+                                            {% elif vm.status == 'stopped' %}
+                                            <span class="badge bg-danger">Stopped</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ vm.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if vm.cpu_usage is defined %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ vm.cpu_usage|round(1) }}% Used">
+                                                <div class="progress-bar {% if vm.cpu_usage > 90 %}bg-danger{% elif vm.cpu_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ vm.cpu_usage }}%" 
+                                                    aria-valuenow="{{ vm.cpu_usage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100"></div>
+                                            </div>
+                                            {% else %}
+                                            {{ vm.cpus|default('N/A') }}
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if vm.mem_usage is defined %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ vm.mem_usage|round(1) }}% Used ({{ (vm.mem_used / (1024*1024*1024))|round(1) }} / {{ (vm.maxmem / (1024*1024*1024))|round(1) }} GB)">
+                                                <div class="progress-bar {% if vm.mem_usage > 90 %}bg-danger{% elif vm.mem_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ vm.mem_usage }}%" 
+                                                    aria-valuenow="{{ vm.mem_usage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100"></div>
+                                            </div>
+                                            {% else %}
+                                            {{ (vm.maxmem / (1024*1024))|int if vm.maxmem else 'N/A' }} MB
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if vm.disk_usage is defined %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ vm.disk_usage|round(1) }}% Used ({{ (vm.disk_used / (1024*1024*1024))|round(1) }} / {{ (vm.disk_total / (1024*1024*1024))|round(1) }} GB)">
+                                                <div class="progress-bar {% if vm.disk_usage > 90 %}bg-danger{% elif vm.disk_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ vm.disk_usage }}%" 
+                                                    aria-valuenow="{{ vm.disk_usage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100"></div>
+                                            </div>
+                                            {% else %}
+                                            {{ (vm.disk|default(0) / (1024*1024*1024))|round(1) if vm.disk else 'N/A' }} GB
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if vm.tags %}
+                                            {% for tag in vm.tags.split(',') %}
+                                            <span class="badge bg-info">{{ tag }}</span>
+                                            {% endfor %}
+                                            {% else %}
+                                            <small class="text-muted">No tags</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('vm_details', host_id=vm.host_id, node=vm.node, vmid=vm.vmid) }}" 
+                                               class="btn btn-sm btn-info">
+                                                <i class="fas fa-info-circle"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
+                        {% else %}
+                        <div class="alert alert-info">No virtual machines found matching your search criteria.</div>
+                        {% endif %}
                     </div>
+                    {% endif %}
                     
-                    <div class="col-md-3">
-                        <div class="form-floating">
-                            <select class="form-select" id="resourceTypeFilter" name="resource_type">
-                                <option value="" {% if not resource_type %}selected{% endif %}>All Resources</option>
-                                <option value="vm" {% if resource_type == 'vm' %}selected{% endif %}>Virtual Machines</option>
-                                <option value="container" {% if resource_type == 'container' %}selected{% endif %}>Containers</option>
-                                <option value="node" {% if resource_type == 'node' %}selected{% endif %}>Nodes</option>
-                                <option value="storage" {% if resource_type == 'storage' %}selected{% endif %}>Storage</option>
-                            </select>
-                            <label for="resourceTypeFilter">Resource Type</label>
+                    <!-- Container Results -->
+                    {% if search_containers %}
+                    <div class="tab-pane fade {% if active_tab == 'containers' %}show active{% endif %}" 
+                         id="containers-tab-pane" role="tabpanel" aria-labelledby="containers-tab">
+                        {% if container_results %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Host</th>
+                                        <th>Node</th>
+                                        <th>CTID</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                        <th>CPU</th>
+                                        <th>Memory</th>
+                                        <th>Storage</th>
+                                        <th>Tags</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for container in container_results %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('host_details', host_id=container.host_id) }}" class="fw-medium text-decoration-none">
+                                                {{ container.host_id }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('node_details', host_id=container.host_id, node=container.node) }}" class="fw-medium text-decoration-none">
+                                                {{ container.node }}
+                                            </a>
+                                        </td>
+                                        <td>{{ container.vmid }}</td>
+                                        <td>{{ container.name }}</td>
+                                        <td>
+                                            {% if container.status == 'running' %}
+                                            <span class="badge bg-success">Running</span>
+                                            {% elif container.status == 'stopped' %}
+                                            <span class="badge bg-danger">Stopped</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ container.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if container.cpu_usage is defined %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ container.cpu_usage|round(1) }}% Used">
+                                                <div class="progress-bar {% if container.cpu_usage > 90 %}bg-danger{% elif container.cpu_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ container.cpu_usage }}%" 
+                                                    aria-valuenow="{{ container.cpu_usage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100"></div>
+                                            </div>
+                                            {% else %}
+                                            {{ container.cpus|default('N/A') }}
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if container.mem_usage is defined %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ container.mem_usage|round(1) }}% Used ({{ (container.mem_used / (1024*1024*1024))|round(1) }} / {{ (container.maxmem / (1024*1024*1024))|round(1) }} GB)">
+                                                <div class="progress-bar {% if container.mem_usage > 90 %}bg-danger{% elif container.mem_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ container.mem_usage }}%" 
+                                                    aria-valuenow="{{ container.mem_usage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100"></div>
+                                            </div>
+                                            {% else %}
+                                            {{ (container.maxmem / (1024*1024))|int if container.maxmem else 'N/A' }} MB
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if container.disk_usage is defined %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ container.disk_usage|round(1) }}% Used ({{ (container.disk_used / (1024*1024*1024))|round(1) }} / {{ (container.disk_total / (1024*1024*1024))|round(1) }} GB)">
+                                                <div class="progress-bar {% if container.disk_usage > 90 %}bg-danger{% elif container.disk_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ container.disk_usage }}%" 
+                                                    aria-valuenow="{{ container.disk_usage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100"></div>
+                                            </div>
+                                            {% else %}
+                                            {{ (container.disk|default(0) / (1024*1024*1024))|round(1) if container.disk else 'N/A' }} GB
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if container.tags %}
+                                            {% for tag in container.tags.split(',') %}
+                                            <span class="badge bg-info">{{ tag }}</span>
+                                            {% endfor %}
+                                            {% else %}
+                                            <small class="text-muted">No tags</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('container_details', host_id=container.host_id, node=container.node, vmid=container.vmid) }}" 
+                                               class="btn btn-sm btn-info">
+                                                <i class="fas fa-info-circle"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
+                        {% else %}
+                        <div class="alert alert-info">No containers found matching your search criteria.</div>
+                        {% endif %}
                     </div>
+                    {% endif %}
                     
-                    <div class="col-md-3">
-                        <div class="form-floating">
-                            <select class="form-select" id="hostFilter" name="host_id">
-                                <option value="" {% if not selected_host_id %}selected{% endif %}>All Hosts</option>
-                                {% for host_id in available_hosts %}
-                                <option value="{{ host_id }}" {% if selected_host_id == host_id %}selected{% endif %}>{{ host_id }}</option>
-                                {% endfor %}
-                            </select>
-                            <label for="hostFilter">Host</label>
+                    <!-- Node Results -->
+                    {% if search_nodes %}
+                    <div class="tab-pane fade {% if active_tab == 'nodes' %}show active{% endif %}" 
+                         id="nodes-tab-pane" role="tabpanel" aria-labelledby="nodes-tab">
+                        {% if node_results %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Host</th>
+                                        <th>Node</th>
+                                        <th>Status</th>
+                                        <th>CPU</th>
+                                        <th>Memory</th>
+                                        <th>Storage</th>
+                                        <th>VMs / Containers</th>
+                                        <th>Uptime</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for node in node_results %}
+                                    <tr class="{% if node.status != 'online' %}table-danger{% endif %}">
+                                        <td>
+                                            <a href="{{ url_for('host_details', host_id=node.host_id) }}" class="fw-medium text-decoration-none">
+                                                {{ node.host_id }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('node_details', host_id=node.host_id, node=node.node) }}" class="fw-medium text-decoration-none">
+                                                {{ node.node }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if node.status == 'online' %}
+                                            <span class="badge bg-success">Online</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Offline</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.cpu_usage|round(1) }}% Used">
+                                                <div class="progress-bar {% if node.cpu_usage > 90 %}bg-danger{% elif node.cpu_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     role="progressbar" style="width: {{ node.cpu_usage }}%;" 
+                                                     aria-valuenow="{{ node.cpu_usage }}" aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="width: 10%;">
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.memory_usage|round(1) }}% Used">
+                                                <div class="progress-bar {% if node.memory_usage > 90 %}bg-danger{% elif node.memory_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     role="progressbar" style="width: {{ node.memory_usage }}%;" 
+                                                     aria-valuenow="{{ node.memory_usage }}" aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if node.storage_usage is defined %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.storage_usage|round(1) }}% Used">
+                                                <div class="progress-bar {% if node.storage_usage > 90 %}bg-danger{% elif node.storage_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     role="progressbar" style="width: {{ node.storage_usage }}%;" 
+                                                     aria-valuenow="{{ node.storage_usage }}" aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ node.vm_count }} VMs</span>
+                                            <span class="badge bg-success">{{ node.vm_count_running }} running</span>
+                                            <span class="badge bg-info">{{ node.container_count }} CTs</span>
+                                            <span class="badge bg-success">{{ node.container_count_running }} running</span>
+                                        </td>
+                                        <td>{{ (node.uptime / 86400)|round(1) }} days</td>
+                                        <td>
+                                            <a href="{{ url_for('node_details', host_id=node.host_id, node=node.node) }}" 
+                                               class="btn btn-sm btn-info">
+                                                <i class="fas fa-info-circle"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
+                        {% else %}
+                        <div class="alert alert-info">No nodes found matching your search criteria.</div>
+                        {% endif %}
                     </div>
+                    {% endif %}
                     
-                    <div class="col-md-3">
-                        <div class="form-floating">
-                            <input type="text" class="form-control" id="tagFilter" name="tag" 
-                                   placeholder="Filter by tag" value="{{ tag }}">
-                            <label for="tagFilter">Tag</label>
+                    <!-- Storage Results -->
+                    {% if search_storage %}
+                    <div class="tab-pane fade {% if active_tab == 'storage' %}show active{% endif %}" 
+                         id="storage-tab-pane" role="tabpanel" aria-labelledby="storage-tab">
+                        {% if storage_results %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Host</th>
+                                        <th>Node</th>
+                                        <th>Storage</th>
+                                        <th>Type</th>
+                                        <th>Content</th>
+                                        <th>Usage</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for storage in storage_results %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('host_details', host_id=storage.host_id) }}" class="fw-medium text-decoration-none">
+                                                {{ storage.host_id }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('node_details', host_id=storage.host_id, node=storage.node) }}" class="fw-medium text-decoration-none">
+                                                {{ storage.node }}
+                                            </a>
+                                        </td>
+                                        <td>{{ storage.storage }}</td>
+                                        <td>{{ storage.type }}</td>
+                                        <td>
+                                            {% for content_type in storage.content.split(',') %}
+                                            <span class="badge bg-secondary">{{ content_type }}</span>
+                                            {% endfor %}
+                                        </td>
+                                        <td style="width: 10%;">
+                                            {% if storage.total > 0 %}
+                                            <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ storage.usage_percent|round(1) }}% Used ({{ (storage.used / (1024**3))|round(2) }} GB / {{ (storage.total / (1024**3))|round(2) }} GB)">
+                                                <div class="progress-bar {% if storage.usage_percent > 90 %}bg-danger{% elif storage.usage_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     role="progressbar" style="width: {{ storage.usage_percent }}%;" 
+                                                     aria-valuenow="{{ storage.usage_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('storage_list', host_id=storage.host_id) }}" 
+                                               class="btn btn-sm btn-info">
+                                                <i class="fas fa-info-circle"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
+                        {% else %}
+                        <div class="alert alert-info">No storage found matching your search criteria.</div>
+                        {% endif %}
                     </div>
-                    
-                    <div class="col-12 text-end">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-filter me-1"></i> Apply Filters
-                        </button>
-                        <a href="{{ url_for('search', q=query) }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times me-1"></i> Clear Filters
-                        </a>
-                    </div>
-                </form>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Results Section -->
-<div class="row">
-    <div class="col-12">
-        <ul class="nav nav-tabs mb-4" id="resultsTab" role="tablist">
-            {% if search_vms %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if active_tab == 'vms' %}active{% endif %}" 
-                        id="vms-tab" data-bs-toggle="tab" data-bs-target="#vms-tab-pane" 
-                        type="button" role="tab" aria-controls="vms-tab-pane" aria-selected="true">
-                    <i class="fas fa-desktop me-1"></i> Virtual Machines <span class="badge bg-secondary">{{ vm_results|length }}</span>
-                </button>
-            </li>
-            {% endif %}
-            
-            {% if search_containers %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if active_tab == 'containers' %}active{% endif %}" 
-                        id="containers-tab" data-bs-toggle="tab" data-bs-target="#containers-tab-pane" 
-                        type="button" role="tab" aria-controls="containers-tab-pane" aria-selected="false">
-                    <i class="fas fa-cube me-1"></i> Containers <span class="badge bg-secondary">{{ container_results|length }}</span>
-                </button>
-            </li>
-            {% endif %}
-            
-            {% if search_nodes %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if active_tab == 'nodes' %}active{% endif %}" 
-                        id="nodes-tab" data-bs-toggle="tab" data-bs-target="#nodes-tab-pane" 
-                        type="button" role="tab" aria-controls="nodes-tab-pane" aria-selected="false">
-                    <i class="fas fa-server me-1"></i> Nodes <span class="badge bg-secondary">{{ node_results|length }}</span>
-                </button>
-            </li>
-            {% endif %}
-            
-            {% if search_storage %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if active_tab == 'storage' %}active{% endif %}" 
-                        id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage-tab-pane" 
-                        type="button" role="tab" aria-controls="storage-tab-pane" aria-selected="false">
-                    <i class="fas fa-hdd me-1"></i> Storage <span class="badge bg-secondary">{{ storage_results|length }}</span>
-                </button>
-            </li>
-            {% endif %}
-        </ul>
-        
-        <div class="tab-content" id="resultsTabContent">
-            <!-- VM Results -->
-            {% if search_vms %}
-            <div class="tab-pane fade {% if active_tab == 'vms' %}show active{% endif %}" 
-                 id="vms-tab-pane" role="tabpanel" aria-labelledby="vms-tab">
-                {% if vm_results %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Host</th>
-                                <th>Node</th>
-                                <th>VMID</th>
-                                <th>Name</th>
-                                <th>Status</th>
-                                <th>CPU</th>
-                                <th>Memory</th>
-                                <th>Tags</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for vm in vm_results %}
-                            <tr>
-                                <td>{{ vm.host_id }}</td>
-                                <td>{{ vm.node }}</td>
-                                <td>{{ vm.vmid }}</td>
-                                <td>{{ vm.name }}</td>
-                                <td>
-                                    {% if vm.status == 'running' %}
-                                    <span class="badge bg-success">Running</span>
-                                    {% elif vm.status == 'stopped' %}
-                                    <span class="badge bg-danger">Stopped</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">{{ vm.status }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ vm.cpus|default('N/A') }}</td>
-                                <td>{{ (vm.maxmem / (1024*1024))|int if vm.maxmem else 'N/A' }} MB</td>
-                                <td>
-                                    {% if vm.tags %}
-                                    {% for tag in vm.tags.split(',') %}
-                                    <span class="badge bg-info">{{ tag }}</span>
-                                    {% endfor %}
-                                    {% else %}
-                                    <small class="text-muted">No tags</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('vm_details', host_id=vm.host_id, node=vm.node, vmid=vm.vmid) }}" 
-                                       class="btn btn-sm btn-info">
-                                        <i class="fas fa-info-circle"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info">No virtual machines found matching your search criteria.</div>
-                {% endif %}
+<!-- Advanced Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">
+                    <i class="fas fa-filter me-2"></i>Advanced Search Filters
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            {% endif %}
-            
-            <!-- Container Results -->
-            {% if search_containers %}
-            <div class="tab-pane fade {% if active_tab == 'containers' %}show active{% endif %}" 
-                 id="containers-tab-pane" role="tabpanel" aria-labelledby="containers-tab">
-                {% if container_results %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Host</th>
-                                <th>Node</th>
-                                <th>CTID</th>
-                                <th>Name</th>
-                                <th>Status</th>
-                                <th>CPU</th>
-                                <th>Memory</th>
-                                <th>Tags</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for container in container_results %}
-                            <tr>
-                                <td>{{ container.host_id }}</td>
-                                <td>{{ container.node }}</td>
-                                <td>{{ container.vmid }}</td>
-                                <td>{{ container.name }}</td>
-                                <td>
-                                    {% if container.status == 'running' %}
-                                    <span class="badge bg-success">Running</span>
-                                    {% elif container.status == 'stopped' %}
-                                    <span class="badge bg-danger">Stopped</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">{{ container.status }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ container.cpus|default('N/A') }}</td>
-                                <td>{{ (container.maxmem / (1024*1024))|int if container.maxmem else 'N/A' }} MB</td>
-                                <td>
-                                    {% if container.tags %}
-                                    {% for tag in container.tags.split(',') %}
-                                    <span class="badge bg-info">{{ tag }}</span>
-                                    {% endfor %}
-                                    {% else %}
-                                    <small class="text-muted">No tags</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('container_details', host_id=container.host_id, node=container.node, vmid=container.vmid) }}" 
-                                       class="btn btn-sm btn-info">
-                                        <i class="fas fa-info-circle"></i>
-                                    </a>
-                                </td>
-                            </tr>
+            <div class="modal-body">
+                <form action="{{ url_for('search') }}" method="get" id="filterForm">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    
+                    <div class="mb-3">
+                        <label for="statusFilter" class="form-label">Status</label>
+                        <select class="form-select" id="statusFilter" name="status">
+                            <option value="" {% if not status %}selected{% endif %}>All</option>
+                            <option value="running" {% if status == 'running' %}selected{% endif %}>Running</option>
+                            <option value="stopped" {% if status == 'stopped' %}selected{% endif %}>Stopped</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="resourceTypeFilter" class="form-label">Resource Type</label>
+                        <select class="form-select" id="resourceTypeFilter" name="resource_type">
+                            <option value="" {% if not resource_type %}selected{% endif %}>All Resources</option>
+                            <option value="vm" {% if resource_type == 'vm' %}selected{% endif %}>Virtual Machines</option>
+                            <option value="container" {% if resource_type == 'container' %}selected{% endif %}>Containers</option>
+                            <option value="node" {% if resource_type == 'node' %}selected{% endif %}>Nodes</option>
+                            <option value="storage" {% if resource_type == 'storage' %}selected{% endif %}>Storage</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="hostFilter" class="form-label">Host</label>
+                        <select class="form-select" id="hostFilter" name="host_id">
+                            <option value="" {% if not selected_host_id %}selected{% endif %}>All Hosts</option>
+                            {% for host_id in available_hosts %}
+                            <option value="{{ host_id }}" {% if selected_host_id == host_id %}selected{% endif %}>{{ host_id }}</option>
                             {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info">No containers found matching your search criteria.</div>
-                {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tagFilter" class="form-label">Tag</label>
+                        <input type="text" class="form-control" id="tagFilter" name="tag" 
+                               placeholder="Filter by tag" value="{{ tag }}">
+                    </div>
+                </form>
             </div>
-            {% endif %}
-            
-            <!-- Node Results -->
-            {% if search_nodes %}
-            <div class="tab-pane fade {% if active_tab == 'nodes' %}show active{% endif %}" 
-                 id="nodes-tab-pane" role="tabpanel" aria-labelledby="nodes-tab">
-                {% if node_results %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Host</th>
-                                <th>Node</th>
-                                <th>Status</th>
-                                <th>CPU Usage</th>
-                                <th>Memory</th>
-                                <th>VMs / Containers</th>
-                                <th>Uptime</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for node in node_results %}
-                            <tr>
-                                <td>{{ node.host_id }}</td>
-                                <td>{{ node.node }}</td>
-                                <td>
-                                    {% if node.status == 'online' %}
-                                    <span class="badge bg-success">Online</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Offline</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar {% if node.cpu_usage > 90 %}bg-danger{% elif node.cpu_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
-                                             role="progressbar" style="width: {{ node.cpu_usage }}%;" 
-                                             aria-valuenow="{{ node.cpu_usage }}" aria-valuemin="0" aria-valuemax="100">
-                                            {{ node.cpu_usage }}%
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar {% if node.memory_usage > 90 %}bg-danger{% elif node.memory_usage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
-                                             role="progressbar" style="width: {{ node.memory_usage }}%;" 
-                                             aria-valuenow="{{ node.memory_usage }}" aria-valuemin="0" aria-valuemax="100">
-                                            {{ node.memory_usage }}%
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-primary">{{ node.vm_count }} VMs</span>
-                                    <span class="badge bg-info">{{ node.container_count }} CTs</span>
-                                </td>
-                                <td>{{ (node.uptime / 86400)|round(1) }} days</td>
-                                <td>
-                                    <a href="{{ url_for('node_details', host_id=node.host_id, node=node.node) }}" 
-                                       class="btn btn-sm btn-info">
-                                        <i class="fas fa-info-circle"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info">No nodes found matching your search criteria.</div>
-                {% endif %}
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('filterForm').submit();">
+                    Apply Filters
+                </button>
             </div>
-            {% endif %}
-            
-            <!-- Storage Results -->
-            {% if search_storage %}
-            <div class="tab-pane fade {% if active_tab == 'storage' %}show active{% endif %}" 
-                 id="storage-tab-pane" role="tabpanel" aria-labelledby="storage-tab">
-                {% if storage_results %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Host</th>
-                                <th>Node</th>
-                                <th>Storage</th>
-                                <th>Type</th>
-                                <th>Content</th>
-                                <th>Usage</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for storage in storage_results %}
-                            <tr>
-                                <td>{{ storage.host_id }}</td>
-                                <td>{{ storage.node }}</td>
-                                <td>{{ storage.storage }}</td>
-                                <td>{{ storage.type }}</td>
-                                <td>
-                                    {% for content_type in storage.content.split(',') %}
-                                    <span class="badge bg-secondary">{{ content_type }}</span>
-                                    {% endfor %}
-                                </td>
-                                <td>
-                                    {% if storage.total > 0 %}
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar {% if storage.usage_percent > 90 %}bg-danger{% elif storage.usage_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" 
-                                             role="progressbar" style="width: {{ storage.usage_percent }}%;" 
-                                             aria-valuenow="{{ storage.usage_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                            {{ storage.usage_percent }}%
-                                        </div>
-                                    </div>
-                                    <small>{{ (storage.used / (1024**3))|round(2) }} GB / {{ (storage.total / (1024**3))|round(2) }} GB</small>
-                                    {% else %}
-                                    <span class="text-muted">Usage information not available</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('storage_list', host_id=storage.host_id) }}" 
-                                       class="btn btn-sm btn-info">
-                                        <i class="fas fa-info-circle"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info">No storage found matching your search criteria.</div>
-                {% endif %}
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -391,14 +551,35 @@
 
 {% block scripts %}
 <script>
-    // Initialize tabs
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips for progress bars
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
         // Activate the tab with results if no active tab is specified
         if (!document.querySelector('.tab-pane.active')) {
             const firstTab = document.querySelector('.nav-link');
             if (firstTab) {
                 firstTab.click();
             }
+        }
+        
+        // Initialize the filter modal with keyboard focus
+        const filterModal = document.getElementById('filterModal');
+        if (filterModal) {
+            filterModal.addEventListener('shown.bs.modal', function() {
+                document.getElementById('statusFilter').focus();
+            });
+        }
+        
+        // Refresh button
+        const refreshBtn = document.getElementById('refreshResultsBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                window.location.reload();
+            });
         }
     });
 </script>
