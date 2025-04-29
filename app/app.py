@@ -7,17 +7,26 @@ from proxmoxer import ProxmoxAPI
 import pickle
 import threading
 import datetime
-import time  # Import time module for cache TTL
+import time
 import schedule  # For snapshot scheduling
 import re  # For regex pattern matching
 import random
+import uuid  # For generating unique IDs
+import requests  # For making HTTP requests
+
+# Import utility functions and route handlers from app_utils
+from app_utils import (
+    get_from_cache, set_in_cache, invalidate_cache,
+    search_route, settings_route, update_settings_route, resource_thresholds_route, logs_route,
+    node_maintenance_route, all_maintenance_route,
+    register_all_routes, check_scheduled_maintenance
+)
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 # Set a secret key for session management
-app.secret_key = os.getenv('SECRET_KEY', 'proxima-ui-secret-key')
 bootstrap = Bootstrap(app)
 
 # Store Proxmox connections with thread-safe lock
@@ -5359,6 +5368,26 @@ def check_scheduled_maintenance():
 def before_request():
     # Check for scheduled maintenance
     check_scheduled_maintenance()
+
+# Register imported routes from app_utils
+register_all_routes(app, proxmox_connections, cache, cache_lock)
+
+# Configure scheduled task for maintenance checks
+if os.getenv('ENABLE_SCHEDULED_MAINTENANCE_CHECKS', 'True').lower() == 'true':
+    def check_maintenance():
+        check_scheduled_maintenance()
+        
+    # Run maintenance check every 5 minutes
+    schedule.every(5).minutes.do(check_maintenance)
+    
+    # Start scheduler in a background thread
+    def run_scheduler():
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+            
+    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
