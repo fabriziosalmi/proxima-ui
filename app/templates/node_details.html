@@ -110,10 +110,10 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-secondary text-white h-100">
+        <div class="card bg-secondary text-white h-100" id="health-card">
             <div class="card-body">
                 <div>
-                    <h6 class="card-title mb-0 fw-bold fs-5"><i class="fas fa-heartbeat me-1"></i> Health</h6>
+                    <h6 class="card-title mb-0 fw-bold fs-5">Resources</h6>
                     
                     <!-- CPU Health -->
                     <div class="d-flex align-items-center mt-2">
@@ -790,6 +790,21 @@
             memory_total: {{ (node_status.memory.total / (1024*1024*1024))|round(2) }},
             storage_percent: {{ (node_status.rootfs.used / node_status.rootfs.total * 100)|round(2) }}
         };
+        
+        // Apply dark theme styling to the health card to match the 4th card in index.html
+        const healthCard = document.getElementById('health-card');
+        if (healthCard) {
+            // Check if dark theme is active by looking at body or html element
+            const isDarkTheme = document.body.classList.contains('dark-theme') || 
+                              document.documentElement.classList.contains('dark-theme') ||
+                              document.body.getAttribute('data-bs-theme') === 'dark' ||
+                              window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (isDarkTheme) {
+                healthCard.style.backgroundColor = 'rgb(23, 23, 24)';
+                healthCard.classList.remove('bg-secondary');
+            }
+        }
         
         // Check resource thresholds
         ResourceAlerts.checkNodeResources(nodeData);
