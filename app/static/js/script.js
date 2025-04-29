@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize resource charts
     initResourceCharts();
     
+    // Initialize optional columns display based on user settings
+    initOptionalColumns();
+    
     // Auto-close alerts after 5 seconds
     setTimeout(function() {
         const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
@@ -565,6 +568,121 @@ function initTableSorting() {
             });
         });
     });
+}
+
+/**
+ * Initialize optional columns display based on user settings
+ */
+function initOptionalColumns() {
+    // Check for column visibility settings in cookies
+    const showUsernameColumn = getCookie('show_username_column') === 'true';
+    const showSslColumn = getCookie('show_ssl_column') === 'true';
+    
+    // Get column elements
+    const usernameColumns = document.querySelectorAll('.username-column');
+    const sslColumns = document.querySelectorAll('.ssl-column');
+    
+    // Apply visibility settings
+    if (showUsernameColumn) {
+        usernameColumns.forEach(col => col.classList.remove('d-none'));
+    }
+    
+    if (showSslColumn) {
+        sslColumns.forEach(col => col.classList.remove('d-none'));
+    }
+    
+    // Add column visibility toggle to the Node Status table header
+    const nodeTable = document.getElementById('nodesTable');
+    if (nodeTable) {
+        const tableCard = nodeTable.closest('.card');
+        if (tableCard) {
+            const cardHeader = tableCard.querySelector('.card-header');
+            if (cardHeader) {
+                // Create column visibility toggle button
+                const toggleButton = document.createElement('button');
+                toggleButton.className = 'btn btn-sm btn-outline-secondary ms-2';
+                toggleButton.innerHTML = '<i class="fas fa-columns me-1"></i> Show/Hide Columns';
+                toggleButton.setAttribute('data-bs-toggle', 'dropdown');
+                toggleButton.setAttribute('aria-expanded', 'false');
+                
+                // Create dropdown menu
+                const dropdownMenu = document.createElement('ul');
+                dropdownMenu.className = 'dropdown-menu';
+                
+                // Username column toggle
+                const usernameItem = document.createElement('li');
+                const usernameCheck = document.createElement('div');
+                usernameCheck.className = 'dropdown-item form-check';
+                usernameCheck.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="toggle-username-column" 
+                        ${showUsernameColumn ? 'checked' : ''}>
+                    <label class="form-check-label" for="toggle-username-column">
+                        Show Username Column
+                    </label>
+                `;
+                usernameItem.appendChild(usernameCheck);
+                dropdownMenu.appendChild(usernameItem);
+                
+                // SSL column toggle
+                const sslItem = document.createElement('li');
+                const sslCheck = document.createElement('div');
+                sslCheck.className = 'dropdown-item form-check';
+                sslCheck.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="toggle-ssl-column" 
+                        ${showSslColumn ? 'checked' : ''}>
+                    <label class="form-check-label" for="toggle-ssl-column">
+                        Show SSL Column
+                    </label>
+                `;
+                sslItem.appendChild(sslCheck);
+                dropdownMenu.appendChild(sslItem);
+                
+                // Create dropdown container
+                const dropdownContainer = document.createElement('div');
+                dropdownContainer.className = 'dropdown d-inline-block';
+                dropdownContainer.appendChild(toggleButton);
+                dropdownContainer.appendChild(dropdownMenu);
+                
+                // Add to card header
+                cardHeader.appendChild(dropdownContainer);
+                
+                // Add event listeners
+                document.getElementById('toggle-username-column').addEventListener('change', function() {
+                    const isChecked = this.checked;
+                    document.cookie = `show_username_column=${isChecked};path=/;max-age=31536000`;
+                    usernameColumns.forEach(col => {
+                        if (isChecked) {
+                            col.classList.remove('d-none');
+                        } else {
+                            col.classList.add('d-none');
+                        }
+                    });
+                });
+                
+                document.getElementById('toggle-ssl-column').addEventListener('change', function() {
+                    const isChecked = this.checked;
+                    document.cookie = `show_ssl_column=${isChecked};path=/;max-age=31536000`;
+                    sslColumns.forEach(col => {
+                        if (isChecked) {
+                            col.classList.remove('d-none');
+                        } else {
+                            col.classList.add('d-none');
+                        }
+                    });
+                });
+            }
+        }
+    }
+}
+
+/**
+ * Get cookie value by name
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
 }
 
 // Fix for browser back button infinite loading issue

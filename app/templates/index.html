@@ -16,88 +16,7 @@
 </div>
 
 {% if hosts %}
-    <!-- System Health Status -->
     {% if stats %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-heartbeat me-2"></i>System Health</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="resource-health mb-3">
-                                <h6><i class="fas fa-microchip me-2"></i>CPU Health</h6>
-                                <div class="progress" style="height: 1.5rem;">
-                                    <div class="progress-bar 
-                                        {% if stats.cpu_health_percent > 75 %}
-                                            bg-success
-                                        {% elif stats.cpu_health_percent > 50 %}
-                                            bg-warning
-                                        {% else %}
-                                            bg-danger
-                                        {% endif %}" 
-                                         role="progressbar" 
-                                         style="width: {{ stats.cpu_health_percent }}%;" 
-                                         aria-valuenow="{{ stats.cpu_health_percent }}" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100">
-                                        {{ stats.cpu_health_percent|round(1) }}%
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="resource-health mb-3">
-                                <h6><i class="fas fa-memory me-2"></i>Memory Health</h6>
-                                <div class="progress" style="height: 1.5rem;">
-                                    <div class="progress-bar 
-                                        {% if stats.memory_health_percent > 75 %}
-                                            bg-success
-                                        {% elif stats.memory_health_percent > 50 %}
-                                            bg-warning
-                                        {% else %}
-                                            bg-danger
-                                        {% endif %}" 
-                                         role="progressbar" 
-                                         style="width: {{ stats.memory_health_percent }}%;" 
-                                         aria-valuenow="{{ stats.memory_health_percent }}" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100">
-                                        {{ stats.memory_health_percent|round(1) }}%
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="resource-health mb-3">
-                                <h6><i class="fas fa-hdd me-2"></i>Storage Health</h6>
-                                <div class="progress" style="height: 1.5rem;">
-                                    <div class="progress-bar 
-                                        {% if stats.storage_health_percent > 75 %}
-                                            bg-success
-                                        {% elif stats.storage_health_percent > 50 %}
-                                            bg-warning
-                                        {% else %}
-                                            bg-danger
-                                        {% endif %}" 
-                                         role="progressbar" 
-                                         style="width: {{ stats.storage_health_percent }}%;" 
-                                         aria-valuenow="{{ stats.storage_health_percent }}" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100">
-                                        {{ stats.storage_health_percent|round(1) }}%
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <!-- Resource Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -157,15 +76,79 @@
         <div class="col-md-3">
             <div class="card bg-secondary text-white h-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title mb-0">Last Updated</h6>
-                            <h5 class="mt-2 mb-0 last-updated">{{ now.strftime('%Y-%m-%d %H:%M') }}</h5>
-                            <small>&nbsp;</small>
+                    <div>
+                        <h6 class="card-title mb-0"><i class="fas fa-heartbeat me-1"></i> System Health</h6>
+                        
+                        <!-- CPU Health -->
+                        <div class="d-flex align-items-center mt-2">
+                            <small><i class="fas fa-microchip me-1"></i>CPU:</small>
+                            <div class="progress ms-2 flex-grow-1" style="height: 0.6rem;">
+                                <div class="progress-bar 
+                                    {% if stats.cpu_health_percent > 75 %}
+                                        bg-success
+                                    {% elif stats.cpu_health_percent > 50 %}
+                                        bg-warning
+                                    {% else %}
+                                        bg-danger
+                                    {% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ stats.cpu_health_percent }}%;" 
+                                     aria-valuenow="{{ stats.cpu_health_percent }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="ms-1">{{ stats.cpu_health_percent|round(1) }}%</small>
                         </div>
-                        <div>
-                            <i class="fas fa-clock fa-3x opacity-50"></i>
+                        
+                        <!-- Memory Health -->
+                        <div class="d-flex align-items-center mt-2">
+                            <small><i class="fas fa-memory me-1"></i>RAM:</small>
+                            <div class="progress ms-2 flex-grow-1" style="height: 0.6rem;">
+                                <div class="progress-bar 
+                                    {% if stats.memory_health_percent > 75 %}
+                                        bg-success
+                                    {% elif stats.memory_health_percent > 50 %}
+                                        bg-warning
+                                    {% else %}
+                                        bg-danger
+                                    {% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ stats.memory_health_percent }}%;" 
+                                     aria-valuenow="{{ stats.memory_health_percent }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="ms-1">{{ stats.memory_health_percent|round(1) }}%</small>
                         </div>
+                        
+                        <!-- Storage Health -->
+                        <div class="d-flex align-items-center mt-2">
+                            <small><i class="fas fa-hdd me-1"></i>Disk:</small>
+                            <div class="progress ms-2 flex-grow-1" style="height: 0.6rem;">
+                                <div class="progress-bar 
+                                    {% if stats.storage_health_percent > 75 %}
+                                        bg-success
+                                    {% elif stats.storage_health_percent > 50 %}
+                                        bg-warning
+                                    {% else %}
+                                        bg-danger
+                                    {% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ stats.storage_health_percent }}%;" 
+                                     aria-valuenow="{{ stats.storage_health_percent }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="ms-1">{{ stats.storage_health_percent|round(1) }}%</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 pt-2 border-top border-light">
+                        <small class="text-light">Last Updated:</small>
+                        <div class="last-updated">{{ now.strftime('%Y-%m-%d %H:%M') }}</div>
                     </div>
                 </div>
             </div>
@@ -190,6 +173,8 @@
                                     <th>Host</th>
                                     <th>Node</th>
                                     <th>Status</th>
+                                    <th class="optional-column username-column d-none">Username</th>
+                                    <th class="optional-column ssl-column d-none">SSL</th>
                                     <th>CPU</th>
                                     <th>Memory</th>
                                     <th>Storage</th>
@@ -197,13 +182,22 @@
                                     <th>Containers</th>
                                     <th>Uptime</th>
                                     <th>Actions</th>
+                                    <th>Host Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for node in stats.nodes %}
                                 <tr class="{% if node.status != 'online' %}table-danger{% endif %}">
-                                    <td>{{ node.host_id }}</td>
-                                    <td>{{ node.name }}</td>
+                                    <td>
+                                        <a href="{{ url_for('host_details', host_id=node.host_id) }}" class="fw-medium text-decoration-none">
+                                            {{ node.host_id }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('node_details', host_id=node.host_id, node=node.name) }}" class="fw-medium text-decoration-none">
+                                            {{ node.name }}
+                                        </a>
+                                    </td>
                                     <td>
                                         {% if node.status == 'online' %}
                                             <span class="badge bg-success">Online</span>
@@ -211,7 +205,17 @@
                                             <span class="badge bg-danger">Offline</span>
                                         {% endif %}
                                     </td>
-                                    <td style="width: 15%;">
+                                    <td class="optional-column username-column d-none">
+                                        <span class="badge bg-secondary">{{ hosts[node.host_id].user }}</span>
+                                    </td>
+                                    <td class="optional-column ssl-column d-none">
+                                        {% if hosts[node.host_id].verify_ssl %}
+                                            <span class="badge bg-success">Enabled</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Disabled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="width: 10%;">
                                         <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.cpu|round(1) }}% Used">
                                             <div class="progress-bar {% if node.cpu > 90 %}bg-danger{% elif node.cpu > 75 %}bg-warning{% else %}bg-success{% endif %}" 
                                                 role="progressbar" 
@@ -221,7 +225,7 @@
                                                 aria-valuemax="100"></div>
                                         </div>
                                     </td>
-                                    <td style="width: 15%;">
+                                    <td style="width: 10%;">
                                         <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.memory_percent|round(1) }}% Used ({{ node.memory_used|round(1) }} / {{ node.memory_total|round(1) }} GB)">
                                             <div class="progress-bar {% if node.memory_percent > 90 %}bg-danger{% elif node.memory_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" 
                                                 role="progressbar" 
@@ -231,7 +235,7 @@
                                                 aria-valuemax="100"></div>
                                         </div>
                                     </td>
-                                    <td style="width: 15%;">
+                                    <td style="width: 10%;">
                                         <div class="progress" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ node.storage_percent|round(1) }}% Used">
                                             <div class="progress-bar {% if node.storage_percent > 90 %}bg-danger{% elif node.storage_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" 
                                                 role="progressbar" 
@@ -255,6 +259,25 @@
                                             <i class="fas fa-info-circle"></i>
                                         </a>
                                     </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('storage_list', host_id=node.host_id) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Storage">
+                                                <i class="fas fa-hdd"></i>
+                                            </a>
+                                            <a href="{{ url_for('backup_list', host_id=node.host_id) }}" class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Backups">
+                                                <i class="fas fa-save"></i>
+                                            </a>
+                                            <a href="{{ url_for('jobs', host_id=node.host_id) }}" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="Jobs">
+                                                <i class="fas fa-clock"></i>
+                                            </a>
+                                            <a href="{{ url_for('user_management', host_id=node.host_id) }}" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Users">
+                                                <i class="fas fa-users"></i>
+                                            </a>
+                                            <a href="{{ url_for('cluster_firewall', host_id=node.host_id) }}" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Firewall">
+                                                <i class="fas fa-shield-alt"></i>
+                                            </a>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -265,102 +288,6 @@
         </div>
     </div>
     {% endif %}
-
-    <!-- Host Cards -->
-    <h4 class="mb-3"><i class="fas fa-server me-2"></i>Your Proxmox Hosts</h4>
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        {% for host_id, host_info in hosts.items() %}
-        <div class="col">
-            <div class="card h-100 hover-shadow">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-server text-primary me-2"></i> 
-                        {{ host_info.host }}
-                    </h5>
-                    <span class="badge bg-primary">{{ host_info.port }}</span>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span><i class="fas fa-user me-2"></i>Username:</span>
-                            <span class="badge bg-secondary">{{ host_info.user }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span><i class="fas fa-lock me-2"></i>SSL Verification:</span>
-                            {% if host_info.verify_ssl %}
-                                <span class="badge bg-success">Enabled</span>
-                            {% else %}
-                                <span class="badge bg-warning">Disabled</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    {% if 'status' in host_info %}
-                    <div class="mt-3 mb-3">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span><i class="fas fa-desktop me-2"></i>VMs:</span>
-                            <span>
-                                <span class="badge bg-success">{{ host_info.status.vms_running }}</span> /
-                                <span class="badge bg-secondary">{{ host_info.status.vms_total }}</span>
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span><i class="fas fa-cube me-2"></i>Containers:</span>
-                            <span>
-                                <span class="badge bg-success">{{ host_info.status.containers_running }}</span> /
-                                <span class="badge bg-secondary">{{ host_info.status.containers_total }}</span>
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span><i class="fas fa-hdd me-2"></i>Nodes:</span>
-                            <span>
-                                <span class="badge bg-success">{{ host_info.status.nodes_online }}</span> /
-                                <span class="badge bg-secondary">{{ host_info.status.nodes_total }}</span>
-                            </span>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="mt-3">
-                        <button class="btn btn-outline-primary btn-sm w-100 mb-2" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#hostActions{{ loop.index }}" aria-expanded="false">
-                            <i class="fas fa-cogs me-1"></i> Host Actions
-                        </button>
-                        
-                        <div class="collapse mt-2" id="hostActions{{ loop.index }}">
-                            <div class="d-flex flex-column">
-                                <a href="{{ url_for('storage_list', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary mb-1">
-                                    <i class="fas fa-hdd me-1"></i> Storage
-                                </a>
-                                <a href="{{ url_for('backup_list', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary mb-1">
-                                    <i class="fas fa-save me-1"></i> Backups
-                                </a>
-                                <a href="{{ url_for('jobs', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary mb-1">
-                                    <i class="fas fa-clock me-1"></i> Jobs
-                                </a>
-                                <a href="{{ url_for('user_management', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary mb-1">
-                                    <i class="fas fa-users me-1"></i> Users
-                                </a>
-                                <a href="{{ url_for('cluster_firewall', host_id=host_id) }}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-shield-alt me-1"></i> Firewall
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex justify-content-between">
-                    <a href="{{ url_for('host_details', host_id=host_id) }}" class="btn btn-sm btn-info">
-                        <i class="fas fa-info-circle me-1"></i> Details
-                    </a>
-                    <a href="{{ url_for('remove_host', host_id=host_id) }}" class="btn btn-sm btn-danger" 
-                       onclick="return confirm('Are you sure you want to remove this host?');">
-                        <i class="fas fa-trash me-1"></i> Remove
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
 {% else %}
     <div class="card">
         <div class="card-body text-center">
@@ -386,6 +313,14 @@
         if (lastUpdatedElem) {
             lastUpdatedElem.textContent = dateString;
         }
+        
+        // Clean up host names by removing port numbers
+        document.querySelectorAll('.card-header h5').forEach(header => {
+            const text = header.innerText;
+            if (text.includes(':8006')) {
+                header.innerText = text.replace(':8006', '');
+            }
+        });
         
         // Initialize tooltips
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
