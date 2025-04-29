@@ -1,3 +1,7 @@
 [2025-04-29 10:15:30,123] [INFO] [app] Application started successfully - test
 [2025-04-29 10:15:35,456] [WARNING] [api] Connection timeout to Proxmox host - test
 [2025-04-29 10:15:40,789] [ERROR] [api] Failed to fetch VM data from Proxmox - test
+[2025-04-29 20:12:58,812] [INFO] [app] Home page accessed, found 2 configured hosts
+[2025-04-29 20:22:52,809] [INFO] [app] Logs page viewed with level filter: all, page 1
+[2025-04-29 20:22:57,250] [INFO] [app] Logs page viewed with level filter: all, page 1
+[2025-04-29 20:24:10,337] [INFO] [app] Home page accessed, found 2 configured hosts

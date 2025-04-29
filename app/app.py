@@ -443,6 +443,23 @@ def vm_details(host_id, node, vmid):
         connection = proxmox_connections[host_id]['connection']
         vm_info = connection.nodes(node).qemu(vmid).status.current.get()
         
+        # Fetch disk usage information if VM is running
+        if vm_info.get('status') == 'running' and 'disks' in vm_info:
+            for disk_id, disk in vm_info['disks'].items():
+                try:
+                    # Get disk usage data from the guest agent if available
+                    guest_disks = connection.nodes(node).qemu(vmid).agent.get('get-fsinfo')
+                    
+                    if guest_disks and 'result' in guest_disks:
+                        for fs in guest_disks['result']:
+                            # Match disk device with the corresponding entry from agent data
+                            if fs.get('device', '').endswith(disk_id.replace('virtio', 'vd').replace('scsi', 'sd')):
+                                disk['usage'] = fs.get('used-bytes', 0)
+                                disk['total'] = fs.get('total-bytes', 0)
+                except Exception as e:
+                    # The guest agent might not be available, continue without usage info
+                    pass
+        
         return render_template('vm_details.html',
                             host_id=host_id,
                             node=node,
