@@ -118,7 +118,7 @@
                         
                         <!-- Storage Health -->
                         <div class="d-flex align-items-center mt-2">
-                            <small><i class="fas fa-hdd me-1"></i>Disk:</small>
+                            <small><i class="fas fa-hdd me-1"></i>Storage:</small>
                             <div class="progress ms-2 flex-grow-1" style="height: 0.6rem;">
                                 <div class="progress-bar 
                                     {% if stats.storage_health_percent > 75 %}
@@ -136,6 +136,10 @@
                                 </div>
                             </div>
                             <small class="ms-1">{{ stats.storage_health_percent|round(1) }}%</small>
+                        </div>
+                        
+                        <div class="mt-2 smaller text-white" style="font-size: 0.7rem;">
+                            <i class="fas fa-info-circle me-1"></i> Aggregated metrics - see Node/VM/Container details for individual storage usage
                         </div>
                     </div>
                 </div>
