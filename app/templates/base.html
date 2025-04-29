@@ -138,32 +138,6 @@
                         </form>
                         
                         {% if 'host_id' in request.view_args %}
-                        <div class="breadcrumb-wrapper me-auto">
-                            <nav aria-label="breadcrumb">
-                                <ol class="breadcrumb mb-0">
-                                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-                                    {% if 'host_id' in request.view_args %}
-                                        <li class="breadcrumb-item">
-                                            <a href="{{ url_for('host_details', host_id=request.view_args.host_id) }}">
-                                                {{ request.view_args.host_id }}
-                                            </a>
-                                        </li>
-                                    {% endif %}
-                                    {% if 'node' in request.view_args %}
-                                        <li class="breadcrumb-item">
-                                            <a href="{{ url_for('node_details', host_id=request.view_args.host_id, node=request.view_args.node) }}">
-                                                {{ request.view_args.node }}
-                                            </a>
-                                        </li>
-                                    {% endif %}
-                                    {% if 'vmid' in request.view_args %}
-                                        <li class="breadcrumb-item active">
-                                            VM {{ request.view_args.vmid }}
-                                        </li>
-                                    {% endif %}
-                                </ol>
-                            </nav>
-                        </div>
                         {% endif %}
                         
                         <div class="ms-auto d-flex align-items-center">
@@ -177,7 +151,6 @@
                             <button id="theme-toggle" class="btn btn-link" title="Toggle dark mode">
                                 <i class="fas fa-moon"></i>
                             </button>
-                            <span class="ms-2">{{ config.get('APP_NAME', 'Proxmox UI') }}</span>
                         </div>
                     </div>
                 </div>
