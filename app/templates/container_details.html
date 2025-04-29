@@ -49,117 +49,63 @@
 <!-- Resource Alerts Container -->
 <div id="container-resource-alerts-container"></div>
 
+<!-- Resource Statistics Cards -->
 <div class="row mb-4">
-    <div class="col">
-        <h1><i class="fas fa-cube"></i> Container: {{ container_info.name }}</h1>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5><i class="fas fa-info-circle me-2"></i>Container Status</h5>
-            </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white h-100">
             <div class="card-body">
-                <table class="table">
-                    <tr>
-                        <th>Status</th>
-                        <td>
-                            {% if container_info.status == 'running' %}
-                                <span class="badge bg-success">Running</span>
-                            {% elif container_info.status == 'stopped' %}
-                                <span class="badge bg-danger">Stopped</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ container_info.status }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>CTID</th>
-                        <td>{{ vmid }}</td>
-                    </tr>
-                    <tr>
-                        <th>Name</th>
-                        <td>{{ container_info.name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Uptime</th>
-                        <td>
-                            {% if container_info.status == 'running' %}
-                                {{ (container_info.uptime / 86400)|round(1) }} days
-                                ({{ (container_info.uptime / 3600)|round(0) }} hours)
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% if container_info.tags is defined and container_info.tags %}
-                    <tr>
-                        <th>Tags</th>
-                        <td>
-                            {% for tag in container_info.tags.split(',') %}
-                                <span class="badge bg-info">{{ tag }}</span>
-                            {% endfor %}
-                        </td>
-                    </tr>
-                    {% endif %}
-                </table>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Container</h6>
+                        <h1 class="mt-2 mb-0 display-5">{{ container_info.name }}</h1>
+                        <small>CTID: {{ vmid }}</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-cube fa-3x opacity-50"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5><i class="fas fa-microchip me-2"></i>Hardware Resources</h5>
-            </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white h-100">
             <div class="card-body">
-                <table class="table">
-                    <tr>
-                        <th>CPUs</th>
-                        <td>{{ container_info.cpus }}</td>
-                    </tr>
-                    <tr>
-                        <th>Memory</th>
-                        <td>{{ (container_info.maxmem / (1024*1024))|round(0) }} MB</td>
-                    </tr>
-                    <tr>
-                        <th>CPU Usage</th>
-                        <td>
-                            {% if container_info.status == 'running' %}
-                                {{ (container_info.cpu * 100)|round(2) }}%
-                                <div class="progress">
-                                    <div class="progress-bar {% if container_info.cpu > 0.75 %}bg-warning{% elif container_info.cpu > 0.9 %}bg-danger{% else %}bg-success{% endif %}" 
-                                        role="progressbar" style="width: {{ (container_info.cpu * 100)|round(2) }}%" 
-                                        aria-valuenow="{{ (container_info.cpu * 100)|round(2) }}" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">CPU</h6>
+                        <h1 class="mt-2 mb-0 display-5">{{ container_info.cpus }}</h1>
+                        <small>{% if container_info.status == 'running' %}{{ (container_info.cpu * 100)|round(2) }}% usage{% else %}Offline{% endif %}</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-microchip fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Memory</h6>
+                        {% if (container_info.maxmem / (1024*1024)) >= 1024 %}
+                            {% set memory_gb = ((container_info.maxmem / (1024*1024)) / 1024) %}
+                            {% if memory_gb == memory_gb|round(0) %}
+                                <h1 class="mt-2 mb-0 display-5">{{ memory_gb|round(0)|int }}</h1>
                             {% else %}
-                                N/A
+                                <h1 class="mt-2 mb-0 display-5">{{ memory_gb|round(1) }}</h1>
                             {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Memory Usage</th>
-                        <td>
-                            {% if container_info.status == 'running' %}
-                                {{ (container_info.mem / (1024*1024))|round(0) }} MB / {{ (container_info.maxmem / (1024*1024))|round(0) }} MB
-                                {% set mem_percent = (container_info.mem / container_info.maxmem * 100)|round(2) %}
-                                <div class="progress">
-                                    <div class="progress-bar {% if mem_percent > 75 %}bg-warning{% elif mem_percent > 90 %}bg-danger{% else %}bg-success{% endif %}" 
-                                        role="progressbar" 
-                                        style="width: {{ mem_percent }}%" 
-                                        aria-valuenow="{{ mem_percent }}" 
-                                        aria-valuemin="0" aria-valuemax="100">
-                                        {{ mem_percent }}%
-                                    </div>
-                                </div>
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </td>
-                    </tr>
-                </table>
+                            <small>GB Total{% if container_info.status == 'running' %} ({{ (container_info.mem / container_info.maxmem * 100)|round(2) }}% used){% endif %}</small>
+                        {% else %}
+                            <h1 class="mt-2 mb-0 display-5">{{ (container_info.maxmem / (1024*1024))|round(0) }}</h1>
+                            <small>MB Total{% if container_info.status == 'running' %} ({{ (container_info.mem / container_info.maxmem * 100)|round(2) }}% used){% endif %}</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <i class="fas fa-memory fa-3x opacity-50"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

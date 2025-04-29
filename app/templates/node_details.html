@@ -251,60 +251,60 @@
                                     </td>
                                     <td data-value="{{ vm.maxmem }}">{{ (vm.maxmem / (1024*1024))|round(0) }} MB</td>
                                     <td data-value="{% if vm.cpus is defined %}{{ vm.cpus }}{% elif vm.maxcpu is defined %}{{ vm.maxcpu }}{% else %}0{% endif %}">
-                                        {% if vm.cpus is defined %}
-                                            {{ vm.cpus }}
-                                        {% elif vm.maxcpu is defined %}
+                                        {% if vm.cpus is defined %}.maxmem / (1024*1024)) / 1024) %}
+                                            {{ vm.cpus }}gb == memory_gb|round(0) %}
+                                        {% elif vm.maxcpu is defined %}nt }} GB
                                             {{ vm.maxcpu }}
-                                        {% else %}
-                                            N/A
+                                        {% else %} memory_gb|round(1) }} GB
+                                            N/Aendif %}
                                         {% endif %}
-                                    </td>
+                                    </td>   {{ (vm.maxmem / (1024*1024))|round(0) }} MB
                                     <td data-value="{{ vm.tags|default('') }}">
                                         {% if vm.tags is defined and vm.tags %}
-                                            {% for tag in vm.tags.split(',') %}
+                                            {% for tag in vm.tags.split(',') %}{{ vm.cpus }}{% elif vm.maxcpu is defined %}{{ vm.maxcpu }}{% else %}0{% endif %}">
                                                 <span class="badge bg-info">{{ tag }}</span>
-                                            {% endfor %}
-                                        {% else %}
+                                            {% endfor %}}
+                                        {% else %}.maxcpu is defined %}
                                             <small class="text-muted">No tags</small>
                                         {% endif %}
-                                    </td>
-                                    <td>
+                                    </td>   N/A
+                                    <td>{% endif %}
                                         <div class="btn-group" role="group">
                                             <a href="{{ url_for('vm_details', host_id=host_id, node=node, vmid=vm.vmid) }}" class="btn btn-info btn-sm">
                                                 <i class="fas fa-info-circle"></i>
-                                            </a>
-                                            
+                                            </a>or tag in vm.tags.split(',') %}
+                                                <span class="badge bg-info">{{ tag }}</span>
                                             {% if vm.status == 'running' %}
                                                 <button type="button" class="btn btn-warning btn-sm vm-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
-                                                    <i class="fas fa-power-off"></i>
+                                                    <i class="fas fa-power-off"></i>>
                                                 </button>
                                                 <button type="button" class="btn btn-danger btn-sm vm-action" data-action="stop" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
                                                     <i class="fas fa-stop"></i>
-                                                </button>
+                                                </button>roup" role="group">
                                                 <button type="button" class="btn btn-secondary btn-sm vm-action" data-action="reset" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
-                                                    <i class="fas fa-redo"></i>
+                                                    <i class="fas fa-redo"></i>/i>
                                                 </button>
                                             {% else %}
                                                 <button type="button" class="btn btn-success btn-sm vm-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
-                                                    <i class="fas fa-play"></i>
-                                                </button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
+                                                    <i class="fas fa-play"></i>n btn-warning btn-sm vm-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
+                                                </button>ass="fas fa-power-off"></i>
+                                            {% endif %}n>
+                                        </div>  <button type="button" class="btn btn-danger btn-sm vm-action" data-action="stop" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
+                                    </td>           <i class="fas fa-stop"></i>
+                                </tr>           </button>
+                                {% endfor %}    <button type="button" class="btn btn-secondary btn-sm vm-action" data-action="reset" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
+                            </tbody>                <i class="fas fa-redo"></i>
+                        </table>                </button>
+                    </div>                  {% else %}
+                {% else %}                      <button type="button" class="btn btn-success btn-sm vm-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ vm.vmid }}">
                     <div class="alert alert-info">No virtual machines found on this node.</div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
+                {% endif %}                     </button>
+            </div>                          {% endif %}
+        </div>                          </div>
+    </div>                          </td>
+                                </tr>
     <div class="tab-pane fade" id="containers" role="tabpanel" aria-labelledby="containers-tab">
-        <div class="card">
+        <div class="card">  </tbody>
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div class="bulk-actions-ct d-none">
                     <div class="btn-group" role="group">
@@ -316,23 +316,23 @@
                         </button>
                         <button type="button" class="btn btn-danger btn-sm bulk-action-ct" data-action="stop">
                             <i class="fas fa-stop"></i> Stop Selected
-                        </button>
+                        </button>er d-flex justify-content-between align-items-center">
                         <button type="button" class="btn btn-primary btn-sm bulk-migrate-btn" data-type="lxc">
                             <i class="fas fa-exchange-alt"></i> Migrate Selected
-                        </button>
+                        </button>ype="button" class="btn btn-success btn-sm bulk-action-ct" data-action="start">
                         <button type="button" class="btn btn-secondary btn-sm" id="ct-select-none">
                             <i class="fas fa-times"></i> Clear Selection
-                        </button>
-                    </div>
+                        </button>ype="button" class="btn btn-warning btn-sm bulk-action-ct" data-action="shutdown">
+                    </div>  <i class="fas fa-power-off"></i> Shutdown Selected
                     <span class="ms-2 badge bg-primary" id="ct-selected-count">0 selected</span>
-                </div>
-            </div>
+                </div>  <button type="button" class="btn btn-danger btn-sm bulk-action-ct" data-action="stop">
+            </div>          <i class="fas fa-stop"></i> Stop Selected
             <div class="card-body">
-                {% if containers %}
-                    <div class="table-responsive">
+                {% if containers %}e="button" class="btn btn-primary btn-sm bulk-migrate-btn" data-type="lxc">
+                    <div class="table-responsive">nge-alt"></i> Migrate Selected
                         <table class="table table-striped table-hover" id="containersTable">
-                            <thead>
-                                <tr>
+                            <thead>e="button" class="btn btn-secondary btn-sm" id="ct-select-none">
+                                <tr>="fas fa-times"></i> Clear Selection
                                     <th>
                                         <div class="form-check">
                                             <input class="form-check-input select-all-ct" type="checkbox" value="" id="select-all-ct">
@@ -345,18 +345,18 @@
                                     <th class="sortable" data-sort="memory">Memory <i class="fas fa-sort"></i></th>
                                     <th class="sortable" data-sort="cpu">CPU <i class="fas fa-sort"></i></th>
                                     <th class="sortable" data-sort="tags">Tags <i class="fas fa-sort"></i></th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                                    <th>Actions</th>form-check">
+                                </tr>       <input class="form-check-input select-all-ct" type="checkbox" value="" id="select-all-ct">
+                            </thead>        <label class="form-check-label" for="select-all-ct"></label>
+                            <tbody>     </div>
                                 {% for container in containers %}
-                                <tr>
-                                    <td>
-                                        <div class="form-check">
-                                            <input class="form-check-input ct-checkbox" type="checkbox" 
+                                <tr><th class="sortable" data-sort="ctid">CTID <i class="fas fa-sort"></i></th>
+                                    <td>class="sortable" data-sort="name">Name <i class="fas fa-sort"></i></th>
+                                        <div class="form-check">rt="status">Status <i class="fas fa-sort"></i></th>
+                                            <input class="form-check-input ct-checkbox" type="checkbox" "></i></th>
                                                 data-vmid="{{ container.vmid }}" data-status="{{ container.status }}" data-node="{{ node }}">
-                                        </div>
-                                    </td>
+                                        </div>"sortable" data-sort="tags">Tags <i class="fas fa-sort"></i></th>
+                                    </td>ctions</th>
                                     <td data-value="{{ container.vmid }}">{{ container.vmid }}</td>
                                     <td data-value="{{ container.name }}">{{ container.name }}</td>
                                     <td data-value="{{ container.status }}">
@@ -364,24 +364,35 @@
                                             <span class="badge bg-success">Running</span>
                                         {% elif container.status == 'stopped' %}
                                             <span class="badge bg-danger">Stopped</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ container.status }}</span>
+                                        {% else %} class="form-check-input ct-checkbox" type="checkbox" 
+                                            <span class="badge bg-secondary">{{ container.status }}</span>.status }}" data-node="{{ node }}">
                                         {% endif %}
                                     </td>
-                                    <td data-value="{{ container.maxmem }}">{{ (container.maxmem / (1024*1024))|round(0) }} MB</td>
-                                    <td data-value="{% if container.cpus is defined %}{{ container.cpus }}{% elif container.maxcpu is defined %}{{ container.maxcpu }}{% else %}0{% endif %}">
-                                        {% if container.cpus is defined %}
-                                            {{ container.cpus }}
-                                        {% elif container.maxcpu is defined %}
+                                    <td data-value="{{ container.maxmem }}">
+                                        {% if (container.maxmem / (1024*1024)) >= 1024 %}
+                                            {% set memory_gb = ((container.maxmem / (1024*1024)) / 1024) %}">
+                                            {% if memory_gb == memory_gb|round(0) %}= 'running' %}
+                                                {{ memory_gb|round(0)|int }} GBning</span>
+                                            {% else %}= 'stopped' %}
+                                                {{ memory_gb|round(1) }} GBclass="badge bg-danger">Stopped</span>
+                                            {% endif %} %}
+                                        {% else %}lass="badge bg-secondary">{{ container.status }}</span>
+                                            {{ (container.maxmem / (1024*1024))|round(0) }} MB% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td data-value="{% if container.cpus is defined %}{{ container.cpus }}{% elif container.maxcpu is defined %}{{ container.maxcpu }}{% else %}0{% endif %}"> %}
+                                        {% if container.cpus is defined %}24)) / 1024) %}
+                                            {{ container.cpus }}_gb == memory_gb|round(0) %}
+                                        {% elif container.maxcpu is defined %} memory_gb|round(0)|int }} GB
                                             {{ container.maxcpu }}
-                                        {% else %}
-                                            N/A
-                                        {% endif %}
-                                    </td>
+                                        {% else %}memory_gb|round(1) }} GB
+                                            N/A   {% endif %}
+                                        {% endif %}{% else %}
+                                    </td>4))|round(0) }} MB
                                     <td data-value="{{ container.tags|default('') }}">
                                         {% if container.tags is defined and container.tags %}
-                                            {% for tag in container.tags.split(',') %}
-                                                <span class="badge bg-info">{{ tag }}</span>
+                                            {% for tag in container.tags.split(',') %}ue="{% if container.cpus is defined %}{{ container.cpus }}{% elif container.maxcpu is defined %}{{ container.maxcpu }}{% else %}0{% endif %}">
+                                                <span class="badge bg-info">{{ tag }}</span>f container.cpus is defined %}
                                             {% endfor %}
                                         {% else %}
                                             <small class="text-muted">No tags</small>
@@ -389,39 +400,39 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=container.vmid) }}" class="btn btn-info btn-sm">
+                                            <a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=container.vmid) }}" class="btn btn-info btn-sm"> container.tags|default('') }}">
                                                 <i class="fas fa-info-circle"></i>
-                                            </a>
-                                            
-                                            {% if container.status == 'running' %}
-                                                <button type="button" class="btn btn-warning btn-sm container-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">
-                                                    <i class="fas fa-power-off"></i>
-                                                </button>
+                                            </a>',') %}
+                                            ss="badge bg-info">{{ tag }}</span>
+                                            {% if container.status == 'running' %}}
+                                                <button type="button" class="btn btn-warning btn-sm container-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">e %}
+                                                    <i class="fas fa-power-off"></i>   <small class="text-muted">No tags</small>
+                                                </button>   {% endif %}
                                                 <button type="button" class="btn btn-danger btn-sm container-action" data-action="stop" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">
-                                                    <i class="fas fa-stop"></i>
-                                                </button>
-                                            {% else %}
-                                                <button type="button" class="btn btn-success btn-sm container-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">
+                                                    <i class="fas fa-stop"></i><td>
+                                                </button>        <div class="btn-group" role="group">
+                                            {% else %}                  <a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=container.vmid) }}" class="btn btn-info btn-sm">
+                                                <button type="button" class="btn btn-success btn-sm container-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">                      <i class="fas fa-info-circle"></i>
                                                     <i class="fas fa-play"></i>
-                                                </button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
+                                                </button>                 
+                                            {% endif %}                          {% if container.status == 'running' %}
+                                        </div>                                  <button type="button" class="btn btn-warning btn-sm container-action" data-action="shutdown" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">
+                                    </td>                                          <i class="fas fa-power-off"></i>
+                                </tr>                                          </button>
+                                {% endfor %}                                                <button type="button" class="btn btn-danger btn-sm container-action" data-action="stop" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">
+                            </tbody>                       <i class="fas fa-stop"></i>
                         </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-info">No containers found on this node.</div>
+                    </div>              {% else %}
+                {% else %}             <button type="button" class="btn btn-success btn-sm container-action" data-action="start" data-host-id="{{ host_id }}" data-node="{{ node }}" data-vmid="{{ container.vmid }}">
+                    <div class="alert alert-info">No containers found on this node.</div>              <i class="fas fa-play"></i>
                 {% endif %}
             </div>
-        </div>
-    </div>
+        </div>                      </div>
+    </div></td>
 </div>
 
 <!-- Bulk Migration Modal -->
-<div class="modal fade" id="bulkMigrateModal" tabindex="-1" aria-labelledby="bulkMigrateModalLabel" aria-hidden="true">
+<div class="modal fade" id="bulkMigrateModal" tabindex="-1" aria-labelledby="bulkMigrateModalLabel" aria-hidden="true">    </table>
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -432,46 +443,46 @@
                 <form id="bulkMigrateForm">
                     <input type="hidden" id="bulkMigrateType" name="vm_type">
                     <input type="hidden" id="bulkMigrateItems" name="items">
-                    
-                    <div class="mb-3">
+                    ="bulkMigrateModal" tabindex="-1" aria-labelledby="bulkMigrateModalLabel" aria-hidden="true">
+                    <div class="mb-3">l-dialog">
                         <label for="bulkTargetNode" class="form-label">Target Node</label>
                         <select class="form-select" id="bulkTargetNode" name="target_node" required>
-                            <option value="">Select target node</option>
+                            <option value="">Select target node</option>>
                             {% for node_obj in nodes %}
                                 {% if node_obj.node != node %}
-                                    <option value="{{ node_obj.node }}">{{ node_obj.node }}</option>
+                                    <option value="{{ node_obj.node }}">{{ node_obj.node }}</option>ss="modal-body">
                                 {% endif %}
                             {% endfor %}
                         </select>
                     </div>
-                    
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="bulkOnline" name="online">
-                        <label class="form-check-label" for="bulkOnline">Online Migration</label>
+                    lass="mb-3">
+                    <div class="mb-3 form-check"> <label for="bulkTargetNode" class="form-label">Target Node</label>
+                        <input type="checkbox" class="form-check-input" id="bulkOnline" name="online">      <select class="form-select" id="bulkTargetNode" name="target_node" required>
+                        <label class="form-check-label" for="bulkOnline">Online Migration</label>lue="">Select target node</option>
                         <div class="form-text">If checked, resources will be live-migrated without downtime. This requires running resources.</div>
                     </div>
-                    
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="bulkWithLocalDisks" name="with_local_disks">
-                        <label class="form-check-label" for="bulkWithLocalDisks">With Local Disks</label>
-                        <div class="form-text">If checked, local disks will be migrated as well (slower but maintains integrity).</div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                      <option value="{{ node_obj.node }}">{{ node_obj.node }}</option>
+                    <div class="mb-3 form-check">                  {% endif %}
+                        <input type="checkbox" class="form-check-input" id="bulkWithLocalDisks" name="with_local_disks">                  {% endfor %}
+                        <label class="form-check-label" for="bulkWithLocalDisks">With Local Disks</label>                  </select>
+                        <div class="form-text">If checked, local disks will be migrated as well (slower but maintains integrity).</div>      </div>
+                    </div>                    
+                </form> <div class="mb-3 form-check">
+            </div>                <input type="checkbox" class="form-check-input" id="bulkOnline" name="online">
+            <div class="modal-footer">ss="form-check-label" for="bulkOnline">Online Migration</label>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>ext">If checked, resources will be live-migrated without downtime. This requires running resources.</div>
                 <button type="button" class="btn btn-primary" id="startBulkMigrate">Start Migration</button>
             </div>
         </div>
-    </div>
-</div>
-{% endblock %}
+    </div> class="form-check-input" id="bulkWithLocalDisks" name="with_local_disks">
+</div>ck-label" for="bulkWithLocalDisks">With Local Disks</label>
+{% endblock %}            <div class="form-text">If checked, local disks will be migrated as well (slower but maintains integrity).</div>
 
 {% block scripts %}
 <script>
-    $(document).ready(function() {
-        // Individual VM/Container actions
-        $('.vm-action').click(function() {
+    $(document).ready(function() {ooter">
+        // Individual VM/Container actionsutton" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        $('.vm-action').click(function() {on" class="btn btn-primary" id="startBulkMigrate">Start Migration</button>
             const action = $(this).data('action');
             const hostId = $(this).data('host-id');
             const node = $(this).data('node');
@@ -481,65 +492,65 @@
                 $.post('/api/vm/action', {
                     host_id: hostId,
                     node: node,
-                    vmid: vmid,
-                    action: action
-                }).done(function(data) {
-                    if (data.success) {
+                    vmid: vmid,al VM/Container actions
+                    action: actionm-action').click(function() {
+                }).done(function(data) { const action = $(this).data('action');
+                    if (data.success) {    const hostId = $(this).data('host-id');
                         alert('Action was successful. Page will reload.');
                         location.reload();
                     } else {
-                        alert(`Error: ${data.error}`);
+                        alert(`Error: ${data.error}`); to ${action} VM ${vmid}?`)) {
                     }
-                }).fail(function() {
+                }).fail(function() {        host_id: hostId,
                     alert('Failed to perform action. Please try again.');
                 });
             }
-        });
-        
-        $('.container-action').click(function() {
-            const action = $(this).data('action');
+        });n(data) {
+        ccess) {
+        $('.container-action').click(function() {ion was successful. Page will reload.');
+            const action = $(this).data('action'););
             const hostId = $(this).data('host-id');
             const node = $(this).data('node');
             const vmid = $(this).data('vmid');
-            
-            if (confirm(`Are you sure you want to ${action} container ${vmid}?`)) {
+            tion() {
+            if (confirm(`Are you sure you want to ${action} container ${vmid}?`)) {lease try again.');
                 $.post('/api/container/action', {
                     host_id: hostId,
                     node: node,
                     vmid: vmid,
-                    action: action
-                }).done(function(data) {
-                    if (data.success) {
-                        alert('Action was successful. Page will reload.');
-                        location.reload();
+                    action: actionontainer-action').click(function() {
+                }).done(function(data) { const action = $(this).data('action');
+                    if (data.success) {            const hostId = $(this).data('host-id');
+                        alert('Action was successful. Page will reload.'););
+                        location.reload();;
                     } else {
-                        alert(`Error: ${data.error}`);
-                    }
+                        alert(`Error: ${data.error}`); if (confirm(`Are you sure you want to ${action} container ${vmid}?`)) {
+                    }                $.post('/api/container/action', {
                 }).fail(function() {
                     alert('Failed to perform action. Please try again.');
                 });
-            }
-        });
+            }         action: action
+        });                }).done(function(data) {
 
-        // Bulk selection management for VMs
+        // Bulk selection management for VMsd.');
         $('.vm-checkbox').change(function() {
-            updateBulkActionsVisibility('vm');
-        });
+            updateBulkActionsVisibility('vm');         } else {
+        });                        alert(`Error: ${data.error}`);
 
         $('.select-all-vm').change(function() {
-            $('.vm-checkbox').prop('checked', $(this).prop('checked'));
-            updateBulkActionsVisibility('vm');
-        });
+            $('.vm-checkbox').prop('checked', $(this).prop('checked'));ction. Please try again.');
+            updateBulkActionsVisibility('vm');     });
+        });            }
 
         $('#vm-select-none').click(function() {
             $('.vm-checkbox, .select-all-vm').prop('checked', false);
-            updateBulkActionsVisibility('vm');
-        });
+            updateBulkActionsVisibility('vm');.vm-checkbox').change(function() {
+        });            updateBulkActionsVisibility('vm');
 
         // Bulk selection management for Containers
-        $('.ct-checkbox').change(function() {
-            updateBulkActionsVisibility('ct');
-        });
+        $('.ct-checkbox').change(function() {{
+            updateBulkActionsVisibility('ct'); $('.vm-checkbox').prop('checked', $(this).prop('checked'));
+        });            updateBulkActionsVisibility('vm');
 
         $('.select-all-ct').change(function() {
             $('.ct-checkbox').prop('checked', $(this).prop('checked'));
@@ -547,153 +558,153 @@
         });
 
         $('#ct-select-none').click(function() {
-            $('.ct-checkbox, .select-all-ct').prop('checked', false);
-            updateBulkActionsVisibility('ct');
+            $('.ct-checkbox, .select-all-ct').prop('checked', false);ulk selection management for Containers
+            updateBulkActionsVisibility('ct');ction() {
         });
 
         // Function to update bulk actions visibility
         function updateBulkActionsVisibility(type) {
-            const checkboxSelector = type === 'vm' ? '.vm-checkbox:checked' : '.ct-checkbox:checked';
-            const actionsSelector = type === 'vm' ? '.bulk-actions-vm' : '.bulk-actions-ct';
-            const countSelector = type === 'vm' ? '#vm-selected-count' : '#ct-selected-count';
+            const checkboxSelector = type === 'vm' ? '.vm-checkbox:checked' : '.ct-checkbox:checked';('.ct-checkbox').prop('checked', $(this).prop('checked'));
+            const actionsSelector = type === 'vm' ? '.bulk-actions-vm' : '.bulk-actions-ct';   updateBulkActionsVisibility('ct');
+            const countSelector = type === 'vm' ? '#vm-selected-count' : '#ct-selected-count';        });
             
             const selectedCount = $(checkboxSelector).length;
-            
-            if (selectedCount > 0) {
+            ('checked', false);
+            if (selectedCount > 0) {');
                 $(actionsSelector).removeClass('d-none');
                 $(countSelector).text(`${selectedCount} selected`);
             } else {
-                $(actionsSelector).addClass('d-none');
-            }
-        }
-
+                $(actionsSelector).addClass('d-none');Visibility(type) {
+            }vm' ? '.vm-checkbox:checked' : '.ct-checkbox:checked';
+        }m' ? '.bulk-actions-vm' : '.bulk-actions-ct';
+'#vm-selected-count' : '#ct-selected-count';
         // Bulk actions for VMs
-        $('.bulk-action-vm').click(function() {
+        $('.bulk-action-vm').click(function() {st selectedCount = $(checkboxSelector).length;
             const action = $(this).data('action');
             const hostId = '{{ host_id }}';
-            const selectedVMs = [];
-            
-            $('.vm-checkbox:checked').each(function() {
-                selectedVMs.push({
+            const selectedVMs = [];lass('d-none');
+            Selector).text(`${selectedCount} selected`);
+            $('.vm-checkbox:checked').each(function() { else {
+                selectedVMs.push({    $(actionsSelector).addClass('d-none');
                     node: $(this).data('node'),
                     vmid: $(this).data('vmid'),
                     status: $(this).data('status')
                 });
             });
             
-            if (selectedVMs.length === 0) {
-                alert('No VMs selected.');
+            if (selectedVMs.length === 0) {onst hostId = '{{ host_id }}';
+                alert('No VMs selected.');const selectedVMs = [];
                 return;
             }
-            
-            // Filter VMs based on action
-            let actionableVMs = selectedVMs;
+            dVMs.push({
+            // Filter VMs based on action       node: $(this).data('node'),
+            let actionableVMs = selectedVMs;        vmid: $(this).data('vmid'),
             if (action === 'start') {
                 actionableVMs = selectedVMs.filter(vm => vm.status !== 'running');
             } else if (action === 'stop' || action === 'shutdown') {
                 actionableVMs = selectedVMs.filter(vm => vm.status === 'running');
-            }
-            
+            } === 0) {
+            );
             if (actionableVMs.length === 0) {
                 alert(`No VMs in a state where the "${action}" action can be performed.`);
                 return;
-            }
+            }sed on action
             
-            if (confirm(`Are you sure you want to ${action} ${actionableVMs.length} VMs?`)) {
-                $.post('/api/bulk/vm/action', {
+            if (confirm(`Are you sure you want to ${action} ${actionableVMs.length} VMs?`)) {n === 'start') {
+                $.post('/api/bulk/vm/action', {ctedVMs.filter(vm => vm.status !== 'running');
                     host_id: hostId,
-                    vms: JSON.stringify(actionableVMs),
+                    vms: JSON.stringify(actionableVMs),ionableVMs = selectedVMs.filter(vm => vm.status === 'running');
                     action: action
-                }).done(function(data) {
-                    if (data.success) {
-                        alert(`Action initiated for ${data.processed} VMs. Page will reload.`);
+                }).done(function(data) { 
+                    if (data.success) {            if (actionableVMs.length === 0) {
+                        alert(`Action initiated for ${data.processed} VMs. Page will reload.`);te where the "${action}" action can be performed.`);
                         location.reload();
                     } else {
                         alert(`Error: ${data.error}`);
-                    }
-                }).fail(function() {
+                    }want to ${action} ${actionableVMs.length} VMs?`)) {
+                }).fail(function() {    $.post('/api/bulk/vm/action', {
                     alert('Failed to perform bulk action. Please try again.');
-                });
+                });ctionableVMs),
             }
         });
 
-        // Bulk actions for Containers
-        $('.bulk-action-ct').click(function() {
-            const action = $(this).data('action');
-            const hostId = '{{ host_id }}';
+        // Bulk actions for Containers     alert(`Action initiated for ${data.processed} VMs. Page will reload.`);
+        $('.bulk-action-ct').click(function() {         location.reload();
+            const action = $(this).data('action');        } else {
+            const hostId = '{{ host_id }}';}`);
             const selectedContainers = [];
-            
-            $('.ct-checkbox:checked').each(function() {
-                selectedContainers.push({
+            (function() {
+            $('.ct-checkbox:checked').each(function() {       alert('Failed to perform bulk action. Please try again.');
+                selectedContainers.push({    });
                     node: $(this).data('node'),
                     vmid: $(this).data('vmid'),
                     status: $(this).data('status')
                 });
             });
             
-            if (selectedContainers.length === 0) {
-                alert('No containers selected.');
+            if (selectedContainers.length === 0) {onst hostId = '{{ host_id }}';
+                alert('No containers selected.');const selectedContainers = [];
                 return;
             }
-            
-            // Filter containers based on action
-            let actionableContainers = selectedContainers;
+            dContainers.push({
+            // Filter containers based on action       node: $(this).data('node'),
+            let actionableContainers = selectedContainers;        vmid: $(this).data('vmid'),
             if (action === 'start') {
                 actionableContainers = selectedContainers.filter(container => container.status !== 'running');
             } else if (action === 'stop' || action === 'shutdown') {
                 actionableContainers = selectedContainers.filter(container => container.status === 'running');
-            }
-            
+            }.length === 0) {
+            ected.');
             if (actionableContainers.length === 0) {
                 alert(`No containers in a state where the "${action}" action can be performed.`);
                 return;
-            }
-            
-            if (confirm(`Are you sure you want to ${action} ${actionableContainers.length} containers?`)) {
-                $.post('/api/bulk/container/action', {
+            }ners based on action
+            ers;
+            if (confirm(`Are you sure you want to ${action} ${actionableContainers.length} containers?`)) {n === 'start') {
+                $.post('/api/bulk/container/action', { = selectedContainers.filter(container => container.status !== 'running');
                     host_id: hostId,
-                    containers: JSON.stringify(actionableContainers),
+                    containers: JSON.stringify(actionableContainers),ionableContainers = selectedContainers.filter(container => container.status === 'running');
                     action: action
-                }).done(function(data) {
-                    if (data.success) {
-                        alert(`Action initiated for ${data.processed} containers. Page will reload.`);
+                }).done(function(data) { 
+                    if (data.success) {            if (actionableContainers.length === 0) {
+                        alert(`Action initiated for ${data.processed} containers. Page will reload.`); containers in a state where the "${action}" action can be performed.`);
                         location.reload();
                     } else {
                         alert(`Error: ${data.error}`);
-                    }
-                }).fail(function() {
+                    }you sure you want to ${action} ${actionableContainers.length} containers?`)) {
+                }).fail(function() {    $.post('/api/bulk/container/action', {
                     alert('Failed to perform bulk action. Please try again.');
-                });
+                });rs: JSON.stringify(actionableContainers),
             }
         });
 
-        // Bulk migration
-        $('.bulk-migrate-btn').click(function() {
-            const type = $(this).data('type');
-            const selector = type === 'qemu' ? '.vm-checkbox:checked' : '.ct-checkbox:checked';
+        // Bulk migration     alert(`Action initiated for ${data.processed} containers. Page will reload.`);
+        $('.bulk-migrate-btn').click(function() {         location.reload();
+            const type = $(this).data('type');        } else {
+            const selector = type === 'qemu' ? '.vm-checkbox:checked' : '.ct-checkbox:checked'; ${data.error}`);
             const items = [];
-            
-            $(selector).each(function() {
-                items.push({
+            (function() {
+            $(selector).each(function() {       alert('Failed to perform bulk action. Please try again.');
+                items.push({    });
                     node: $(this).data('node'),
                     vmid: $(this).data('vmid'),
                     status: $(this).data('status')
-                });
+                });ulk migration
             });
             
-            if (items.length === 0) {
+            if (items.length === 0) {ype === 'qemu' ? '.vm-checkbox:checked' : '.ct-checkbox:checked';
                 alert('No resources selected for migration.');
                 return;
             }
-            
-            // Set modal values
-            $('#bulkMigrateType').val(type);
+               items.push({
+            // Set modal values        node: $(this).data('node'),
+            $('#bulkMigrateType').val(type);'vmid'),
             $('#bulkMigrateItems').val(JSON.stringify(items));
             
-            // Handle online migration option based on selected resources
-            const hasRunning = items.some(item => item.status === 'running');
-            if (!hasRunning) {
-                $('#bulkOnline').prop('checked', false).prop('disabled', true);
+            // Handle online migration option based on selected resources });
+            const hasRunning = items.some(item => item.status === 'running');            
+            if (!hasRunning) {= 0) {
+                $('#bulkOnline').prop('checked', false).prop('disabled', true);migration.');
             } else {
                 $('#bulkOnline').prop('disabled', false);
             }
@@ -701,97 +712,119 @@
             // Show the migration modal
             const migrateModal = new bootstrap.Modal(document.getElementById('bulkMigrateModal'));
             migrateModal.show();
-        });
-
-        // Start bulk migration
-        $('#startBulkMigrate').click(function() {
-            const hostId = '{{ host_id }}';
+        });igration option based on selected resources
+.status === 'running');
+        // Start bulk migrationning) {
+        $('#startBulkMigrate').click(function() {   $('#bulkOnline').prop('checked', false).prop('disabled', true);
+            const hostId = '{{ host_id }}';} else {
             const type = $('#bulkMigrateType').val();
             const items = JSON.parse($('#bulkMigrateItems').val());
             const targetNode = $('#bulkTargetNode').val();
             const online = $('#bulkOnline').prop('checked');
-            const withLocalDisks = $('#bulkWithLocalDisks').prop('checked');
+            const withLocalDisks = $('#bulkWithLocalDisks').prop('checked');= new bootstrap.Modal(document.getElementById('bulkMigrateModal'));
             
             if (!targetNode) {
                 alert('Please select a target node.');
                 return;
-            }
+            }nction() {
             
-            if (confirm(`Are you sure you want to migrate ${items.length} resources to node ${targetNode}?`)) {
-                $.post('/api/bulk/migrate', {
-                    host_id: hostId,
-                    items: $('#bulkMigrateItems').val(),
-                    type: type,
+            if (confirm(`Are you sure you want to migrate ${items.length} resources to node ${targetNode}?`)) {pe').val();
+                $.post('/api/bulk/migrate', {ON.parse($('#bulkMigrateItems').val());
+                    host_id: hostId,l();
+                    items: $('#bulkMigrateItems').val(),ine = $('#bulkOnline').prop('checked');
+                    type: type,('#bulkWithLocalDisks').prop('checked');
                     target_node: targetNode,
-                    online: online,
-                    with_local_disks: withLocalDisks
+                    online: online,rgetNode) {
+                    with_local_disks: withLocalDisksalert('Please select a target node.');
                 }).done(function(data) {
                     if (data.success) {
                         alert(`Migration initiated for ${data.processed} resources. Page will reload.`);
-                        location.reload();
-                    } else {
+                        location.reload(); if (confirm(`Are you sure you want to migrate ${items.length} resources to node ${targetNode}?`)) {
+                    } else {                $.post('/api/bulk/migrate', {
                         alert(`Error: ${data.error}`);
-                    }
+                    } $('#bulkMigrateItems').val(),
                 }).fail(function() {
-                    alert('Failed to start migration. Please try again.');
+                    alert('Failed to start migration. Please try again.');etNode,
                 });
                 
                 // Hide the modal
                 bootstrap.Modal.getInstance(document.getElementById('bulkMigrateModal')).hide();
-            }
-        });
-
-        // Check node resources against thresholds and display alerts if needed
+            });
+        });              location.reload();
+            } else {
+        // Check node resources against thresholds and display alerts if needed: ${data.error}`);
         const nodeData = {
-            name: '{{ node }}',
-            host_id: '{{ host_id }}',
+            name: '{{ node }}',        }).fail(function() {
+            host_id: '{{ host_id }}',ion. Please try again.');
             cpu: {{ node_status.cpu * 100 }},
             memory_percent: {{ (node_status.memory.used / node_status.memory.total * 100)|round(2) }},
             memory_used: {{ (node_status.memory.used / (1024*1024*1024))|round(2) }},
-            memory_total: {{ (node_status.memory.total / (1024*1024*1024))|round(2) }},
+            memory_total: {{ (node_status.memory.total / (1024*1024*1024))|round(2) }},p.Modal.getInstance(document.getElementById('bulkMigrateModal')).hide();
             storage_percent: {{ (node_status.rootfs.used / node_status.rootfs.total * 100)|round(2) }}
         };
         
-        // Check resource thresholds
+        // Check resource thresholdst thresholds and display alerts if needed
         ResourceAlerts.checkNodeResources(nodeData);
         
         // Check VM resources if they are running
-        {% if vms is defined %}
-        {% for vm in vms %}
-        {% if vm.status == 'running' %}
-        const vmData = {
-            vmid: '{{ vm.vmid }}',
+        {% if vms is defined %}* 100 }},
+        {% for vm in vms %}emory_percent: {{ (node_status.memory.used / node_status.memory.total * 100)|round(2) }},
+        {% if vm.status == 'running' %}sed: {{ (node_status.memory.used / (1024*1024*1024))|round(2) }},
+        const vmData = {4*1024))|round(2) }},
+            vmid: '{{ vm.vmid }}',100)|round(2) }}
             name: '{{ vm.name }}',
             node: '{{ node }}',
             status: '{{ vm.status }}',
-            cpu: {{ vm.cpu|default(0) }},
+            cpu: {{ vm.cpu|default(0) }},;
             mem: {{ vm.mem|default(0) }},
-            maxmem: {{ vm.maxmem|default(1) }}
-            {% if vm.get('disks') %}
-            ,
-            disks: {
+            maxmem: {{ vm.maxmem|default(1) }}s if they are running
+            {% if vm.get('disks') %} vms is defined %}
+            ,s %}
+            disks: { if vm.status == 'running' %}
                 {% for key, disk in vm.get('disks', {}).items() %}
-                {% if disk.get('usage') is defined and disk.get('total') is defined %}
-                '{{ key }}': {
-                    usage: {{ disk.get('usage') }},
-                    total: {{ disk.get('total') }}
+                {% if disk.get('usage') is defined and disk.get('total') is defined %}{{ vm.vmid }}',
+                '{{ key }}': {{ vm.name }}',
+                    usage: {{ disk.get('usage') }},{{ node }}',
+                    total: {{ disk.get('total') }}    status: '{{ vm.status }}',
                 }{% if not loop.last %},{% endif %}
-                {% endif %}
-                {% endfor %}
+                {% endif %}}},
+                {% endfor %}1) }}
             }
             {% endif %}
         };
-        ResourceAlerts.checkVmResources(vmData);
-        {% endif %}
+        ResourceAlerts.checkVmResources(vmData);t('disks', {}).items() %}
+        {% endif %}'usage') is defined and disk.get('total') is defined %}
         {% endfor %}
-        {% endif %}
-        
+        {% endif %}}},
+        }}
         // Check container resources if they are running
         {% if containers is defined %}
-        {% for container in containers %}
+        {% for container in containers %}   {% endfor %}
         {% if container.status == 'running' %}
         const containerData = {
             vmid: '{{ container.vmid }}',
+            name: '{{ container.name }}',rceAlerts.checkVmResources(vmData);
+            node: '{{ node }}',
+            status: '{{ container.status }}', endfor %}
+            cpu: {{ container.cpu|default(0) }},
+            mem: {{ container.mem|default(0) }},
+            maxmem: {{ container.maxmem|default(1) }}tainer resources if they are running
+            {% if container.get('rootfs') %}iners is defined %}
+            , {% for container in containers %}
+            rootfs: {% if container.status == 'running' %}
+                usage: {{ container.rootfs.get('usage')|default(0) }},containerData = {
+
+
+
+
+
+
+
+
+
+
+
+{% endblock %}</script>    });        {% endif %}        {% endfor %}        {% endif %}        ResourceAlerts.checkContainerResources(containerData);        };            {% endif %}            }                total: {{ container.rootfs.get('total')|default(1) }}            vmid: '{{ container.vmid }}',
             name: '{{ container.name }}',
             node: '{{ node }}',
             status: '{{ container.status }}',
