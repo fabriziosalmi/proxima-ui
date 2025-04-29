@@ -13,19 +13,34 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     
+    <!-- Preload critical assets -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" as="style">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" as="script">
+    <link rel="preload" href="{{ url_for('static', filename='js/script.js') }}" as="script">
+    
     {% block head %}{% endblock %}
 </head>
 <body data-bs-theme="light">
+    <!-- Skip to content link for accessibility -->
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
+    
+    <!-- Offline status detector -->
+    <div id="offline-indicator" class="d-none">
+        <div class="alert alert-warning text-center mb-0 rounded-0">
+            <i class="fas fa-wifi-slash"></i> You are currently offline. Some features may not work until connection is restored.
+        </div>
+    </div>
+
     <div class="wrapper">
         <!-- Page Content -->
         <div id="content">
             <!-- Top navbar -->
-            <nav class="navbar navbar-expand-lg navbar-light mb-3">
+            <nav class="navbar navbar-expand-lg navbar-light mb-3" aria-label="Main navigation">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="{{ url_for('index') }}">
-                        <i class="fas fa-server"></i> Proxmox UI
+                        <i class="fas fa-server" aria-hidden="true"></i> Proxmox UI
                     </a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
                     
@@ -33,28 +48,28 @@
                         <ul class="navbar-nav me-auto">
                             {% if 'host_id' in request.view_args %}
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-server"></i> Host Tools
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-server" aria-hidden="true"></i> Host Tools
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('storage_list', host_id=request.view_args.host_id) }}">
-                                            <i class="fas fa-hdd"></i> Storage
+                                            <i class="fas fa-hdd" aria-hidden="true"></i> Storage
                                         </a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('backup_list', host_id=request.view_args.host_id) }}">
-                                            <i class="fas fa-save"></i> Backups
+                                            <i class="fas fa-save" aria-hidden="true"></i> Backups
                                         </a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('user_management', host_id=request.view_args.host_id) }}">
-                                            <i class="fas fa-users"></i> Users
+                                            <i class="fas fa-users" aria-hidden="true"></i> Users
                                         </a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('cluster_firewall', host_id=request.view_args.host_id) }}">
-                                            <i class="fas fa-shield-alt"></i> Firewall
+                                            <i class="fas fa-shield-alt" aria-hidden="true"></i> Firewall
                                         </a>
                                     </li>
                                 </ul>
@@ -63,16 +78,17 @@
                         </ul>
                         
                         <!-- Global Search Component -->
-                        <form class="d-flex me-auto search-form" action="{{ url_for('search') }}" method="get">
+                        <form class="d-flex me-auto search-form" action="{{ url_for('search') }}" method="get" role="search">
                             <div class="input-group">
+                                <label for="global-search" class="sr-only">Search</label>
                                 <input type="text" class="form-control" placeholder="Search VMs, containers, nodes..." 
-                                       name="q" id="global-search" value="{{ request.args.get('q', '') }}">
-                                <button class="btn btn-outline-primary" type="submit">
-                                    <i class="fas fa-search"></i>
+                                       name="q" id="global-search" value="{{ request.args.get('q', '') }}" aria-label="Search VMs, containers, nodes">
+                                <button class="btn btn-outline-primary" type="submit" aria-label="Submit search">
+                                    <i class="fas fa-search" aria-hidden="true"></i>
                                 </button>
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-filter"></i>
+                                        data-bs-toggle="dropdown" aria-expanded="false" aria-label="Filter search">
+                                    <i class="fas fa-filter" aria-hidden="true"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end p-3" style="width: 250px;">
                                     <li>
@@ -80,7 +96,7 @@
                                             <input class="form-check-input" type="checkbox" name="search_vms" id="search_vms" 
                                                    value="true" {% if request.args.get('search_vms') != 'false' %}checked{% endif %}>
                                             <label class="form-check-label" for="search_vms">
-                                                <i class="fas fa-desktop me-1"></i> Virtual Machines
+                                                <i class="fas fa-desktop me-1" aria-hidden="true"></i> Virtual Machines
                                             </label>
                                         </div>
                                     </li>
@@ -89,7 +105,7 @@
                                             <input class="form-check-input" type="checkbox" name="search_containers" id="search_containers" 
                                                    value="true" {% if request.args.get('search_containers') != 'false' %}checked{% endif %}>
                                             <label class="form-check-label" for="search_containers">
-                                                <i class="fas fa-cube me-1"></i> Containers
+                                                <i class="fas fa-cube me-1" aria-hidden="true"></i> Containers
                                             </label>
                                         </div>
                                     </li>
@@ -98,7 +114,7 @@
                                             <input class="form-check-input" type="checkbox" name="search_nodes" id="search_nodes" 
                                                    value="true" {% if request.args.get('search_nodes') != 'false' %}checked{% endif %}>
                                             <label class="form-check-label" for="search_nodes">
-                                                <i class="fas fa-server me-1"></i> Nodes
+                                                <i class="fas fa-server me-1" aria-hidden="true"></i> Nodes
                                             </label>
                                         </div>
                                     </li>
@@ -107,7 +123,7 @@
                                             <input class="form-check-input" type="checkbox" name="search_storage" id="search_storage" 
                                                    value="true" {% if request.args.get('search_storage') != 'false' %}checked{% endif %}>
                                             <label class="form-check-label" for="search_storage">
-                                                <i class="fas fa-hdd me-1"></i> Storage
+                                                <i class="fas fa-hdd me-1" aria-hidden="true"></i> Storage
                                             </label>
                                         </div>
                                     </li>
@@ -151,6 +167,13 @@
                         {% endif %}
                         
                         <div class="ms-auto d-flex align-items-center">
+                            <!-- System Status Indicator -->
+                            <div class="system-status me-3">
+                                <span id="connection-status" class="badge bg-success" title="System Status">
+                                    <i class="fas fa-check-circle"></i> Connected
+                                </span>
+                            </div>
+                            
                             <button id="theme-toggle" class="btn btn-link" title="Toggle dark mode">
                                 <i class="fas fa-moon"></i>
                             </button>
@@ -161,21 +184,74 @@
             </nav>
 
             <!-- Flash messages -->
-            <div class="container-fluid flash-messages">
+            <div class="container-fluid flash-messages" aria-live="polite">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="alert alert-{{ category }} alert-dismissible fade show">
-                                {{ message }}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                <div class="d-flex align-items-center">
+                                    {% if category == 'success' %}
+                                        <i class="fas fa-check-circle me-2" aria-hidden="true"></i>
+                                    {% elif category == 'danger' %}
+                                        <i class="fas fa-exclamation-circle me-2" aria-hidden="true"></i>
+                                    {% elif category == 'warning' %}
+                                        <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
+                                    {% elif category == 'info' %}
+                                        <i class="fas fa-info-circle me-2" aria-hidden="true"></i>
+                                    {% endif %}
+                                    <div>{{ message }}</div>
+                                </div>
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
+                
+                <!-- Dynamic system notifications area -->
+                <div id="system-notifications" aria-live="polite"></div>
             </div>
 
-            <div class="container-fluid content-container">
+            <!-- Page loading indicator -->
+            <div id="page-loading-indicator" class="d-none" aria-live="polite">
+                <div class="text-center p-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading content...</p>
+                </div>
+            </div>
+
+            <!-- Main content area with ID for skip link -->
+            <div id="main-content" class="container-fluid content-container" tabindex="-1">
                 {% block content %}{% endblock %}
+            </div>
+            
+            <!-- Toast notification container -->
+            <div id="notification-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;" aria-live="polite" aria-atomic="true"></div>
+        </div>
+    </div>
+
+    <!-- Error handling modal for API errors -->
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="errorModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Error
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="errorMessage">An error occurred.</p>
+                    <div id="errorDetails" class="alert alert-secondary mt-3 d-none">
+                        <h6>Technical Details:</h6>
+                        <pre id="errorStack" class="mb-0 small"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="errorRetryBtn">Retry</button>
+                </div>
             </div>
         </div>
     </div>
@@ -189,6 +265,117 @@
     
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <script>
+        // Monitor network connectivity
+        function updateOnlineStatus() {
+            const indicator = document.getElementById('offline-indicator');
+            const statusBadge = document.getElementById('connection-status');
+            
+            if (navigator.onLine) {
+                indicator.classList.add('d-none');
+                statusBadge.className = 'badge bg-success';
+                statusBadge.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+            } else {
+                indicator.classList.remove('d-none');
+                statusBadge.className = 'badge bg-danger';
+                statusBadge.innerHTML = '<i class="fas fa-times-circle"></i> Offline';
+                
+                // Show notification
+                showNotification('You are offline. Some features may not work properly.', 'warning');
+            }
+        }
+
+        // Add error interceptor for fetch API
+        const originalFetch = window.fetch;
+        window.fetch = function() {
+            return originalFetch.apply(this, arguments)
+                .then(response => {
+                    if (!response.ok) {
+                        // Show loading indicator while handling error
+                        document.getElementById('page-loading-indicator').classList.remove('d-none');
+                        
+                        return response.text().then(text => {
+                            try {
+                                // Try to parse as JSON
+                                const data = JSON.parse(text);
+                                throw new Error(data.error || 'API request failed');
+                            } catch (e) {
+                                // If not JSON or other error
+                                const statusText = response.statusText || 'Unknown error';
+                                throw new Error(`${response.status}: ${statusText}`);
+                            }
+                        });
+                    }
+                    return response;
+                })
+                .catch(error => {
+                    // Handle network errors
+                    console.error('Fetch error:', error);
+                    
+                    // Only show error modal for non-offline errors
+                    // (offline is handled by the connectivity monitor)
+                    if (navigator.onLine) {
+                        const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+                        document.getElementById('errorMessage').textContent = error.message || 'An unexpected error occurred';
+                        
+                        // Show technical details for developers
+                        if (error.stack) {
+                            document.getElementById('errorDetails').classList.remove('d-none');
+                            document.getElementById('errorStack').textContent = error.stack;
+                        } else {
+                            document.getElementById('errorDetails').classList.add('d-none');
+                        }
+                        
+                        errorModal.show();
+                    }
+                    
+                    // Hide loading indicator
+                    document.getElementById('page-loading-indicator').classList.add('d-none');
+                    
+                    throw error;
+                });
+        };
+
+        // Register online/offline event listeners
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // Initial check
+        document.addEventListener('DOMContentLoaded', function() {
+            updateOnlineStatus();
+            
+            // Set up retry button
+            document.getElementById('errorRetryBtn').addEventListener('click', function() {
+                window.location.reload();
+            });
+            
+            // Add page transition effects
+            document.querySelectorAll('a:not([target="_blank"])').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (this.href && !this.href.includes('#') && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        document.getElementById('page-loading-indicator').classList.remove('d-none');
+                        document.querySelector('.content-container').classList.add('opacity-50');
+                        
+                        setTimeout(() => {
+                            window.location.href = this.href;
+                        }, 100);
+                    }
+                });
+            });
+            
+            // Add form submission loading indicator
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function() {
+                    // Don't show loading for forms with data-no-loading attribute
+                    if (!this.hasAttribute('data-no-loading')) {
+                        document.getElementById('page-loading-indicator').classList.remove('d-none');
+                    }
+                });
+            });
+        });
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>

@@ -7,6 +7,7 @@ from proxmoxer import ProxmoxAPI
 import pickle
 import threading
 import datetime
+import time  # Import time module for cache TTL
 
 # Load environment variables
 load_dotenv()
@@ -18,6 +19,34 @@ bootstrap = Bootstrap(app)
 # Store Proxmox connections with thread-safe lock
 connection_lock = threading.Lock()
 proxmox_connections = {}
+
+# Simple cache implementation with TTL
+cache_lock = threading.Lock()
+cache = {}
+
+def get_from_cache(key, ttl=30):
+    """Get a value from cache if it exists and is not expired"""
+    with cache_lock:
+        if key in cache:
+            cached_time, cached_value = cache[key]
+            if time.time() - cached_time < ttl:
+                return cached_value
+    return None
+
+def set_in_cache(key, value, ttl=30):
+    """Set a value in cache with current timestamp"""
+    with cache_lock:
+        cache[key] = (time.time(), value)
+        
+def invalidate_cache(prefix=None):
+    """Invalidate all cache entries or those starting with prefix"""
+    with cache_lock:
+        if prefix:
+            keys_to_delete = [k for k in cache.keys() if k.startswith(prefix)]
+            for key in keys_to_delete:
+                del cache[key]
+        else:
+            cache.clear()
 
 # Path to save connections
 CONNECTIONS_FILE = os.getenv('CONNECTIONS_FILE', 'proxmox_connections.pkl')

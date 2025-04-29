@@ -33,6 +33,18 @@ document.addEventListener('DOMContentLoaded', function() {
             bsAlert.close();
         });
     }, 5000);
+    
+    // Add debouncing to search inputs
+    const searchInputs = document.querySelectorAll('input[type="search"]');
+    searchInputs.forEach(input => {
+        const originalHandler = input.oninput;
+        input.oninput = null;
+        input.addEventListener('input', debounce(function(e) {
+            if (originalHandler) {
+                originalHandler.call(this, e);
+            }
+        }, 300));
+    });
 });
 
 /**
@@ -158,19 +170,43 @@ function initActionConfirmations() {
  */
 function initAutoRefresh() {
     const refreshableContent = document.querySelectorAll('[data-refresh]');
+    const refreshStatusElements = document.querySelectorAll('.refresh-status');
     
-    refreshableContent.forEach(element => {
+    refreshableContent.forEach((element, index) => {
         const refreshInterval = parseInt(element.getAttribute('data-refresh')) || 30000; // Default 30s
         const refreshUrl = element.getAttribute('data-refresh-url');
         
         if (refreshUrl) {
+            let secondsLeft = refreshInterval / 1000;
+            const statusElement = refreshStatusElements[index] || document.createElement('div');
+            
+            // Update countdown every second
+            const countdownInterval = setInterval(() => {
+                secondsLeft--;
+                if (statusElement) {
+                    statusElement.textContent = `Refreshing in ${secondsLeft}s`;
+                }
+                
+                if (secondsLeft <= 0) {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+            
+            // Set refresh interval
             setInterval(() => {
+                element.classList.add('loading');
+                
                 fetch(refreshUrl)
                     .then(response => response.text())
                     .then(html => {
                         element.innerHTML = html;
+                        element.classList.remove('loading');
+                        secondsLeft = refreshInterval / 1000;
                     })
-                    .catch(error => console.error('Error refreshing content:', error));
+                    .catch(error => {
+                        console.error('Error refreshing content:', error);
+                        element.classList.remove('loading');
+                    });
             }, refreshInterval);
         }
     });
@@ -209,8 +245,29 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
     const loadingElement = document.getElementById(`${type}-${vmid}-status`);
     const originalContent = loadingElement ? loadingElement.innerHTML : '';
     
+    // Show loading indicator
     if (loadingElement) {
         loadingElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    }
+    
+    // Add a container-wide loading indicator
+    const container = document.querySelector('.content-container');
+    if (container) {
+        container.classList.add('position-relative');
+        
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75';
+        loadingOverlay.style.zIndex = '1000';
+        loadingOverlay.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Processing ${action}...</p>
+            </div>
+        `;
+        
+        container.appendChild(loadingOverlay);
     }
     
     const formData = new FormData();
@@ -226,16 +283,15 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Success handling
-            const successMessage = `Action ${action} was performed successfully`;
-            showNotification(successMessage, 'success');
+            // Success notification
+            showNotification(`Successfully executed ${action}`, 'success');
             
             // Reload page after a delay to show updated status
             setTimeout(() => {
                 window.location.reload();
             }, 1500);
         } else {
-            // Error handling
+            // Error notification
             showNotification(`Error: ${data.error}`, 'danger');
             
             if (loadingElement) {
@@ -249,6 +305,16 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
         
         if (loadingElement) {
             loadingElement.innerHTML = originalContent;
+        }
+    })
+    .finally(() => {
+        // Remove loading overlay
+        if (container) {
+            const overlay = container.querySelector('.position-absolute');
+            if (overlay) {
+                overlay.remove();
+            }
+            container.classList.remove('position-relative');
         }
     });
 }
@@ -313,24 +379,46 @@ function performBulkAction(hostId, action, items, type = 'vm') {
  * Display an in-page notification
  */
 function showNotification(message, type = 'info') {
-    const notificationArea = document.querySelector('.flash-messages');
+    // Create notification container if it doesn't exist
+    let container = document.getElementById('notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '1050';
+        document.body.appendChild(container);
+    }
     
-    if (!notificationArea) return;
-    
+    // Create notification element
     const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.className = `toast align-items-center text-white bg-${type} border-0`;
+    notification.setAttribute('role', 'alert');
+    notification.setAttribute('aria-live', 'assertive');
+    notification.setAttribute('aria-atomic', 'true');
+    
     notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
     `;
     
-    notificationArea.appendChild(notification);
+    // Add to container
+    container.appendChild(notification);
     
-    // Auto dismiss notification after 5 seconds
-    setTimeout(() => {
-        const bsAlert = new bootstrap.Alert(notification);
-        bsAlert.close();
-    }, 5000);
+    // Initialize and show toast
+    const toast = new bootstrap.Toast(notification, {
+        autohide: true,
+        delay: 3000
+    });
+    toast.show();
+    
+    // Remove from DOM after hiding
+    notification.addEventListener('hidden.bs.toast', function() {
+        notification.remove();
+    });
 }
 
 /**
@@ -360,7 +448,24 @@ function initResourceCharts() {
 }
 
 /**
- * Table sorting functionality
+ * Debounce function to limit how often a function can be called
+ * @param {Function} func - The function to debounce
+ * @param {number} wait - The debounce delay in milliseconds
+ */
+function debounce(func, wait = 300) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * Enhanced table sorting with better performance
  */
 function initTableSorting() {
     const tables = document.querySelectorAll('table');
@@ -377,61 +482,79 @@ function initTableSorting() {
             }
             
             header.addEventListener('click', function() {
-                const sortKey = this.getAttribute('data-sort');
+                // Show loading state
                 const tableBody = this.closest('table').querySelector('tbody');
-                const rows = Array.from(tableBody.querySelectorAll('tr'));
+                tableBody.classList.add('loading');
                 
-                // Get current sort direction or default to ascending
-                let sortDirection = this.getAttribute('data-sort-direction') || 'asc';
-                
-                // Toggle sort direction
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-                
-                // Update sort direction attribute
-                this.setAttribute('data-sort-direction', sortDirection);
-                
-                // Reset sort indicators on all headers
-                headers.forEach(h => {
-                    const icon = h.querySelector('i');
+                // Use setTimeout to allow the UI to update before performing the sort
+                setTimeout(() => {
+                    const sortKey = this.getAttribute('data-sort');
+                    const rows = Array.from(tableBody.querySelectorAll('tr'));
+                    
+                    // Get current sort direction or default to ascending
+                    let sortDirection = this.getAttribute('data-sort-direction') || 'asc';
+                    
+                    // Toggle sort direction
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    
+                    // Update sort direction attribute
+                    this.setAttribute('data-sort-direction', sortDirection);
+                    
+                    // Reset sort indicators on all headers
+                    headers.forEach(h => {
+                        const icon = h.querySelector('i');
+                        if (icon) {
+                            icon.className = 'fas fa-sort ms-1';
+                        }
+                    });
+                    
+                    // Update sort indicator on clicked header
+                    const icon = this.querySelector('i');
                     if (icon) {
-                        icon.className = 'fas fa-sort ms-1';
+                        icon.className = `fas fa-sort-${sortDirection === 'asc' ? 'up' : 'down'} ms-1`;
                     }
-                });
-                
-                // Update sort indicator on clicked header
-                const icon = this.querySelector('i');
-                if (icon) {
-                    icon.className = `fas fa-sort-${sortDirection === 'asc' ? 'up' : 'down'} ms-1`;
-                }
-                
-                // Sort the rows
-                rows.sort((rowA, rowB) => {
-                    const cellA = rowA.querySelector(`td:nth-child(${this.cellIndex + 1})`);
-                    const cellB = rowB.querySelector(`td:nth-child(${this.cellIndex + 1})`);
                     
-                    if (!cellA || !cellB) return 0;
+                    // Use DocumentFragment for better performance
+                    const fragment = document.createDocumentFragment();
                     
-                    // Use data-value attribute if available, otherwise use text content
-                    const valueA = cellA.hasAttribute('data-value') ? cellA.getAttribute('data-value') : cellA.textContent.trim();
-                    const valueB = cellB.hasAttribute('data-value') ? cellB.getAttribute('data-value') : cellB.textContent.trim();
+                    // Sort the rows
+                    rows.sort((rowA, rowB) => {
+                        const cellA = rowA.querySelector(`td:nth-child(${this.cellIndex + 1})`);
+                        const cellB = rowB.querySelector(`td:nth-child(${this.cellIndex + 1})`);
+                        
+                        if (!cellA || !cellB) return 0;
+                        
+                        // Use data-value attribute if available, otherwise use text content
+                        const valueA = cellA.hasAttribute('data-value') ? cellA.getAttribute('data-value') : cellA.textContent.trim();
+                        const valueB = cellB.hasAttribute('data-value') ? cellB.getAttribute('data-value') : cellB.textContent.trim();
+                        
+                        // Check if values are numbers
+                        const numA = parseFloat(valueA);
+                        const numB = parseFloat(valueB);
+                        
+                        if (!isNaN(numA) && !isNaN(numB)) {
+                            // Sort numerically
+                            return sortDirection === 'asc' ? numA - numB : numB - numA;
+                        } else {
+                            // Sort alphabetically
+                            return sortDirection === 'asc' 
+                                ? valueA.localeCompare(valueB) 
+                                : valueB.localeCompare(valueA);
+                        }
+                    });
                     
-                    // Check if values are numbers
-                    const numA = parseFloat(valueA);
-                    const numB = parseFloat(valueB);
+                    // Append rows to fragment
+                    rows.forEach(row => fragment.appendChild(row));
                     
-                    if (!isNaN(numA) && !isNaN(numB)) {
-                        // Sort numerically
-                        return sortDirection === 'asc' ? numA - numB : numB - numA;
-                    } else {
-                        // Sort alphabetically
-                        return sortDirection === 'asc' 
-                            ? valueA.localeCompare(valueB) 
-                            : valueB.localeCompare(valueA);
+                    // Clear and repopulate the table body
+                    while (tableBody.firstChild) {
+                        tableBody.removeChild(tableBody.firstChild);
                     }
-                });
-                
-                // Reorder the table rows
-                rows.forEach(row => tableBody.appendChild(row));
+                    tableBody.appendChild(fragment);
+                    
+                    // Remove loading state
+                    tableBody.classList.remove('loading');
+                }, 0);
             });
         });
     });
