@@ -458,13 +458,32 @@ def vm_details(host_id, node, vmid):
                                 disk['total'] = fs.get('total-bytes', 0)
                 except Exception as e:
                     # The guest agent might not be available, continue without usage info
-                    pass
+                    app_logger.warning(f"Failed to get VM disk usage for {vmid}: {str(e)}")
+        
+        # Get available storages for disk operations
+        try:
+            available_storages = connection.nodes(node).storage.get()
+            # Filter storages that can contain disk images
+            available_storages = [s for s in available_storages if 'images' in s.get('content', '').split(',')]
+        except Exception as e:
+            app_logger.warning(f"Failed to get storage list: {str(e)}")
+            available_storages = []
+            
+        # Get available network bridges for network operations
+        try:
+            network = connection.nodes(node).network.get()
+            available_bridges = [n for n in network if n.get('type') == 'bridge']
+        except Exception as e:
+            app_logger.warning(f"Failed to get network bridges: {str(e)}")
+            available_bridges = []
         
         return render_template('vm_details.html',
                             host_id=host_id,
                             node=node,
                             vmid=vmid,
-                            vm_info=vm_info)
+                            vm_info=vm_info,
+                            available_storages=available_storages,
+                            available_bridges=available_bridges)
     except Exception as e:
         flash(f"Failed to get VM details: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
@@ -478,6 +497,36 @@ def container_details(host_id, node, vmid):
     try:
         connection = proxmox_connections[host_id]['connection']
         container_info = connection.nodes(node).lxc(vmid).status.current.get()
+        
+        # Fetch disk usage information if container is running
+        if container_info.get('status') == 'running':
+            try:
+                # Get disk usage data from the container
+                rootfs = container_info.get('rootfs', {})
+                if not rootfs.get('usage') or not rootfs.get('total'):
+                    # Try to get disk usage data from pct command
+                    disk_data = connection.nodes(node).lxc(vmid).get('df')
+                    if disk_data and 'data' in disk_data:
+                        for entry in disk_data['data']:
+                            if entry.get('mountpoint') == '/':
+                                if 'rootfs' not in container_info:
+                                    container_info['rootfs'] = {}
+                                container_info['rootfs']['usage'] = entry.get('used', 0)
+                                container_info['rootfs']['total'] = entry.get('size', 0)
+                                break
+                
+                # Also check for mount points
+                if 'mp' in container_info:
+                    for mp_key, mp_data in container_info['mp'].items():
+                        if disk_data and 'data' in disk_data:
+                            for entry in disk_data['data']:
+                                if entry.get('mountpoint') == mp_key:
+                                    container_info['mp'][mp_key]['usage'] = entry.get('used', 0)
+                                    container_info['mp'][mp_key]['total'] = entry.get('size', 0)
+                                    break
+            except Exception as e:
+                # The guest agent might not be available, continue without usage info
+                app_logger.warning(f"Failed to get container disk usage: {str(e)}")
         
         return render_template('container_details.html',
                             host_id=host_id,

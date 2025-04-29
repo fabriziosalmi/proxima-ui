@@ -5,3 +5,5 @@
 [2025-04-29 20:22:52,809] [INFO] [app] Logs page viewed with level filter: all, page 1
 [2025-04-29 20:22:57,250] [INFO] [app] Logs page viewed with level filter: all, page 1
 [2025-04-29 20:24:10,337] [INFO] [app] Home page accessed, found 2 configured hosts
+[2025-04-29 20:25:43,256] [WARNING] [app] Failed to get container disk usage: 501 Not Implemented: Method 'GET /nodes/dell/lxc/109/df' not implemented
+[2025-04-29 20:28:50,681] [WARNING] [app] Failed to get container disk usage: 501 Not Implemented: Method 'GET /nodes/dell/lxc/102/df' not implemented
