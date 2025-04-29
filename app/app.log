@@ -3,3 +3,5 @@
 [2025-04-29 19:45:17,059] [INFO] [app] Logs page viewed with level filter: all, page 1
 [2025-04-29 19:55:28,055] [INFO] [app] Logs page viewed with level filter: all, page 1
 [2025-04-29 19:55:30,861] [INFO] [app] Logs page viewed with level filter: all, page 1
+[2025-04-29 19:55:59,387] [INFO] [app] Home page accessed, found 2 configured hosts
+[2025-04-29 19:57:35,215] [INFO] [app] Home page accessed, found 2 configured hosts
