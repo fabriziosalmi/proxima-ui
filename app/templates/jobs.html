@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Job Management{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item active">Jobs</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-clock"></i> Job Management</h1>
+    </div>
+    <div class="col-auto">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createJobModal">
+            <i class="fas fa-plus"></i> Create Job
+        </button>
+    </div>
+</div>
+
+<!-- Jobs List -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Scheduled Jobs</h5>
+    </div>
+    <div class="card-body">
+        {% if jobs %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Node</th>
+                            <th>Schedule</th>
+                            <th>Next Run</th>
+                            <th>Last Run</th>
+                            <th>Status</th>
+                            <th>Comment</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in jobs %}
+                        <tr>
+                            <td>{{ job.id }}</td>
+                            <td>{{ job.type }}</td>
+                            <td>{% if job.node %}{{ job.node }}{% else %}<span class="badge bg-info">Cluster</span>{% endif %}</td>
+                            <td>{{ job.schedule }}</td>
+                            <td>{{ job.next_run|timestamp_to_date if job.next_run else 'N/A' }}</td>
+                            <td>{{ job.last_run|timestamp_to_date if job.last_run else 'N/A' }}</td>
+                            <td>
+                                {% if job.enabled %}
+                                    <span class="badge bg-success">Enabled</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Disabled</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ job.comment }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-primary btn-sm" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#editJobModal"
+                                            data-job-id="{{ job.id }}"
+                                            data-schedule="{{ job.schedule }}"
+                                            data-comment="{{ job.comment }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    
+                                    <form action="{{ url_for('toggle_job', host_id=host_id, job_id=job.id) }}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-warning btn-sm">
+                                            {% if job.enabled %}
+                                                <i class="fas fa-pause"></i>
+                                            {% else %}
+                                                <i class="fas fa-play"></i>
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    
+                                    <form action="{{ url_for('delete_job', host_id=host_id, job_id=job.id) }}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this job?');">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No jobs have been scheduled yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Job Modal -->
+<div class="modal fade" id="createJobModal" tabindex="-1" aria-labelledby="createJobModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createJobModalLabel">Create Scheduled Job</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createJobForm" action="{{ url_for('create_job', host_id=host_id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="job_type" class="form-label">Job Type</label>
+                        <select class="form-select" id="job_type" name="job_type" required>
+                            <option value="">Select job type</option>
+                            <option value="backup">Backup</option>
+                            <option value="snapshot">Snapshot</option>
+                            <option value="command">Custom Command</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Backup job specific fields -->
+                    <div id="backup_fields" class="job-specific-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="backup_target_type" class="form-label">Target Type</label>
+                            <select class="form-select" id="backup_target_type" name="target_type">
+                                <option value="">Select target type</option>
+                                <option value="vm">Single VM</option>
+                                <option value="ct">Single Container</option>
+                                <option value="all">All VMs and Containers</option>
+                            </select>
+                        </div>
+                        
+                        <div id="backup_target_fields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="backup_target_id" class="form-label">Target VM/Container ID</label>
+                                <input type="number" class="form-control" id="backup_target_id" name="target_id" placeholder="e.g., 100">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="backup_node" class="form-label">Node</label>
+                                <select class="form-select" id="backup_node" name="node" required>
+                                    <option value="">Select a node</option>
+                                    {% for node in nodes %}
+                                    <option value="{{ node.node }}">{{ node.node }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="backup_storage" class="form-label">Target Storage</label>
+                                <input type="text" class="form-control" id="backup_storage" name="storage" placeholder="e.g., local">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="backup_mode" class="form-label">Mode</label>
+                                <select class="form-select" id="backup_mode" name="mode">
+                                    <option value="snapshot">Snapshot</option>
+                                    <option value="suspend">Suspend</option>
+                                    <option value="stop">Stop</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="backup_all_fields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="backup_all_node" class="form-label">Node</label>
+                                <select class="form-select" id="backup_all_node" name="node">
+                                    <option value="">All Nodes (Cluster-wide)</option>
+                                    {% for node in nodes %}
+                                    <option value="{{ node.node }}">{{ node.node }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Select a specific node or leave blank for cluster-wide job</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="backup_exclude" class="form-label">Exclude VMs/Containers (comma separated)</label>
+                                <input type="text" class="form-control" id="backup_exclude" name="exclude" placeholder="e.g., 100,101,102">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="backup_all_storage" class="form-label">Target Storage</label>
+                                <input type="text" class="form-control" id="backup_all_storage" name="storage" placeholder="e.g., local">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Snapshot job specific fields -->
+                    <div id="snapshot_fields" class="job-specific-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="snapshot_target_type" class="form-label">Target Type</label>
+                            <select class="form-select" id="snapshot_target_type" name="target_type">
+                                <option value="">Select target type</option>
+                                <option value="vm">VM</option>
+                                <option value="ct">Container</option>
+                            </select>
+                        </div>
+                        
+                        <div id="snapshot_target_fields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="snapshot_target_id" class="form-label">Target VM/Container ID</label>
+                                <input type="number" class="form-control" id="snapshot_target_id" name="target_id" placeholder="e.g., 100">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="snapshot_node" class="form-label">Node</label>
+                                <select class="form-select" id="snapshot_node" name="node" required>
+                                    <option value="">Select a node</option>
+                                    {% for node in nodes %}
+                                    <option value="{{ node.node }}">{{ node.node }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Command job specific fields -->
+                    <div id="command_fields" class="job-specific-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="command" class="form-label">Command to Execute</label>
+                            <textarea class="form-control" id="command" name="command" rows="3" placeholder="e.g., /usr/bin/myscript.sh"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="command_node" class="form-label">Node</label>
+                            <select class="form-select" id="command_node" name="node" required>
+                                <option value="">Select a node</option>
+                                {% for node in nodes %}
+                                <option value="{{ node.node }}">{{ node.node }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">The node where the command will be executed</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="log_output" name="log_output" checked>
+                            <label class="form-check-label" for="log_output">Log command output</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Common fields for all job types -->
+                    <div class="mb-3">
+                        <label for="schedule" class="form-label">Schedule (Cron Format)</label>
+                        <input type="text" class="form-control" id="schedule" name="schedule" placeholder="e.g., 0 2 * * *" required>
+                        <div class="form-text">Use cron format: minute hour day month weekday</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="schedule_preset" class="form-label">Schedule Presets</label>
+                        <select class="form-select" id="schedule_preset" onchange="updateSchedule()">
+                            <option value="">Select a preset</option>
+                            <option value="*/15 * * * *">Every 15 minutes</option>
+                            <option value="0 * * * *">Hourly</option>
+                            <option value="0 0 * * *">Daily at midnight</option>
+                            <option value="0 2 * * *">Daily at 2 AM</option>
+                            <option value="0 0 * * 0">Weekly on Sunday</option>
+                            <option value="0 0 1 * *">Monthly on the 1st</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="comment" class="form-label">Comment</label>
+                        <input type="text" class="form-control" id="comment" name="comment" placeholder="Optional description">
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="enabled" name="enabled" checked>
+                        <label class="form-check-label" for="enabled">Enable Job</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="createJobForm" class="btn btn-primary">Create Job</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Job Modal -->
+<div class="modal fade" id="editJobModal" tabindex="-1" aria-labelledby="editJobModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editJobModalLabel">Edit Scheduled Job</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editJobForm" action="" method="post">
+                    <div class="mb-3">
+                        <label for="edit_schedule" class="form-label">Schedule (Cron Format)</label>
+                        <input type="text" class="form-control" id="edit_schedule" name="schedule" placeholder="e.g., 0 2 * * *" required>
+                        <div class="form-text">Use cron format: minute hour day month weekday</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_comment" class="form-label">Comment</label>
+                        <input type="text" class="form-control" id="edit_comment" name="comment" placeholder="Optional description">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="editJobForm" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Show/hide job-specific fields based on job type selection
+        $('#job_type').change(function() {
+            $('.job-specific-fields').hide();
+            const jobType = $(this).val();
+            
+            if (jobType === 'backup') {
+                $('#backup_fields').show();
+            } else if (jobType === 'snapshot') {
+                $('#snapshot_fields').show();
+            } else if (jobType === 'command') {
+                $('#command_fields').show();
+            }
+        });
+        
+        // Show/hide backup target fields based on backup target type
+        $('#backup_target_type').change(function() {
+            $('#backup_target_fields, #backup_all_fields').hide();
+            const targetType = $(this).val();
+            
+            if (targetType === 'vm' || targetType === 'ct') {
+                $('#backup_target_fields').show();
+            } else if (targetType === 'all') {
+                $('#backup_all_fields').show();
+            }
+        });
+        
+        // Show/hide snapshot target fields based on snapshot target type
+        $('#snapshot_target_type').change(function() {
+            $('#snapshot_target_fields').hide();
+            const targetType = $(this).val();
+            
+            if (targetType === 'vm' || targetType === 'ct') {
+                $('#snapshot_target_fields').show();
+            }
+        });
+        
+        // Handle edit job modal
+        $('#editJobModal').on('show.bs.modal', function (event) {
+            const button = $(event.relatedTarget);
+            const jobId = button.data('job-id');
+            const schedule = button.data('schedule');
+            const comment = button.data('comment');
+            
+            const modal = $(this);
+            modal.find('#edit_schedule').val(schedule);
+            modal.find('#edit_comment').val(comment);
+            
+            // Set the form action URL
+            const form = $('#editJobForm');
+            form.attr('action', `{{ url_for('update_job', host_id=host_id, job_id="") }}${jobId}`);
+        });
+    });
+    
+    // Update schedule based on preset selection
+    function updateSchedule() {
+        const preset = document.getElementById('schedule_preset').value;
+        if (preset) {
+            document.getElementById('schedule').value = preset;
+        }
+    }
+</script>
+{% endblock %}

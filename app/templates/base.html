@@ -63,8 +63,18 @@
                                         </a>
                                     </li>
                                     <li>
+                                        <a class="dropdown-item" href="{{ url_for('jobs', host_id=request.view_args.host_id) }}">
+                                            <i class="fas fa-clock" aria-hidden="true"></i> Jobs
+                                        </a>
+                                    </li>
+                                    <li>
                                         <a class="dropdown-item" href="{{ url_for('user_management', host_id=request.view_args.host_id) }}">
                                             <i class="fas fa-users" aria-hidden="true"></i> Users
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('cluster_management', host_id=request.view_args.host_id) }}">
+                                            <i class="fas fa-server" aria-hidden="true"></i> Cluster
                                         </a>
                                     </li>
                                     <li>

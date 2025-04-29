@@ -3979,5 +3979,187 @@ def clone_template(host_id, node):
     
     return redirect(url_for('template_management', host_id=host_id, node=node))
 
+@app.route('/host/<host_id>/jobs')
+def jobs(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get nodes for the node selection dropdowns
+        nodes = connection.nodes.get()
+        
+        # Get all scheduled jobs from the cluster
+        try:
+            # Try to get any existing cron jobs
+            jobs_list = connection.cluster.jobs.get()
+        except Exception:
+            # If the API endpoint doesn't exist or returns an error, provide empty list
+            jobs_list = []
+        
+        return render_template('jobs.html',
+                            host_id=host_id,
+                            jobs=jobs_list,
+                            nodes=nodes)
+    except Exception as e:
+        flash(f"Failed to get jobs list: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
+
+@app.route('/host/<host_id>/jobs/create', methods=['POST'])
+def create_job(host_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        job_type = request.form.get('job_type')
+        schedule = request.form.get('schedule')
+        enabled = request.form.get('enabled') == 'on'
+        comment = request.form.get('comment', '')
+        
+        # Base job parameters
+        params = {
+            'schedule': schedule,
+            'enabled': 1 if enabled else 0,
+            'comment': comment
+        }
+        
+        # Add job type specific parameters
+        if job_type == 'backup':
+            target_type = request.form.get('target_type')
+            target_id = request.form.get('target_id')
+            
+            params['type'] = 'vzdump'
+            
+            if target_type == 'vm':
+                params['vmid'] = target_id
+                params['node'] = request.form.get('node', '')
+                params['storage'] = request.form.get('storage', '')
+                params['mode'] = request.form.get('mode', 'snapshot')
+                
+            elif target_type == 'ct':
+                params['vmid'] = target_id
+                params['node'] = request.form.get('node', '')
+                params['storage'] = request.form.get('storage', '')
+                params['mode'] = request.form.get('mode', 'snapshot')
+                
+            elif target_type == 'all':
+                params['all'] = 1
+                params['exclude'] = request.form.get('exclude', '')
+                
+        elif job_type == 'snapshot':
+            target_type = request.form.get('target_type')
+            target_id = request.form.get('target_id')
+            
+            params['type'] = 'snapshot'
+            
+            if target_type == 'vm':
+                params['vmid'] = target_id
+                params['node'] = request.form.get('node', '')
+                
+            elif target_type == 'ct':
+                params['vmid'] = target_id
+                params['node'] = request.form.get('node', '')
+            
+        elif job_type == 'command':
+            params['type'] = 'exec'
+            params['command'] = request.form.get('command', '')
+            params['node'] = request.form.get('node', '')
+            params['log_output'] = 1 if request.form.get('log_output') == 'on' else 0
+        
+        # Create the job
+        connection.cluster.jobs.post(**params)
+        
+        flash(f"Job created successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to create job: {str(e)}", 'danger')
+    
+    return redirect(url_for('jobs', host_id=host_id))
+
+@app.route('/host/<host_id>/jobs/<job_id>/toggle', methods=['POST'])
+def toggle_job(host_id, job_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get current job to check its status
+        job = None
+        for j in connection.cluster.jobs.get():
+            if j['id'] == job_id:
+                job = j
+                break
+        
+        if not job:
+            flash("Job not found", 'danger')
+            return redirect(url_for('jobs', host_id=host_id))
+        
+        # Toggle the enabled status
+        new_status = 0 if job.get('enabled', 1) == 1 else 1
+        
+        # Update the job
+        connection.cluster.jobs(job_id).put(enabled=new_status)
+        
+        status_text = "enabled" if new_status == 1 else "disabled"
+        flash(f"Job {status_text} successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to toggle job: {str(e)}", 'danger')
+    
+    return redirect(url_for('jobs', host_id=host_id))
+
+@app.route('/host/<host_id>/jobs/<job_id>/delete', methods=['POST'])
+def delete_job(host_id, job_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Delete the job
+        connection.cluster.jobs(job_id).delete()
+        
+        flash(f"Job deleted successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to delete job: {str(e)}", 'danger')
+    
+    return redirect(url_for('jobs', host_id=host_id))
+
+@app.route('/host/<host_id>/jobs/<job_id>/update', methods=['POST'])
+def update_job(host_id, job_id):
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get form data
+        schedule = request.form.get('schedule')
+        comment = request.form.get('comment', '')
+        
+        # Update parameters
+        params = {}
+        if schedule:
+            params['schedule'] = schedule
+        if comment:
+            params['comment'] = comment
+            
+        # Update the job
+        connection.cluster.jobs(job_id).put(**params)
+        
+        flash(f"Job updated successfully", 'success')
+    except Exception as e:
+        flash(f"Failed to update job: {str(e)}", 'danger')
+    
+    return redirect(url_for('jobs', host_id=host_id))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
