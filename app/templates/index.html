@@ -67,7 +67,7 @@
             </a>
         </div>
         <div class="col-md-3">
-            <div class="card bg-secondary text-white h-100">
+            <div class="card bg-secondary text-white h-100" id="resources-card">
                 <div class="card-body">
                     <div>
                         <h6 class="card-title mb-0 fw-bold fs-5"><i class="fas fa-heartbeat me-1"></i> Resources</h6>
@@ -138,9 +138,6 @@
                             <small class="ms-1">{{ stats.storage_health_percent|round(1) }}%</small>
                         </div>
                         
-                        <div class="mt-2 smaller text-white" style="font-size: 0.7rem;">
-                            <i class="fas fa-info-circle me-1"></i> Aggregated metrics - see Node/VM/Container details for individual storage usage
-                        </div>
                     </div>
                 </div>
             </div>
@@ -304,6 +301,28 @@
         const lastUpdatedElem = document.querySelector('.last-updated');
         if (lastUpdatedElem) {
             lastUpdatedElem.textContent = dateString;
+        }
+        
+        // Set dark theme specific colors for the resources card
+        const resourcesCard = document.getElementById('resources-card');
+        if (resourcesCard) {
+            // Check if dark theme is active by looking at body or html element
+            const isDarkTheme = document.body.classList.contains('dark-theme') || 
+                               document.documentElement.classList.contains('dark-theme') ||
+                               window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (isDarkTheme) {
+                resourcesCard.style.backgroundColor = 'rgb(23, 23, 24)';
+                resourcesCard.classList.remove('bg-secondary');
+                
+                // Set specific color and padding for the aggregated metrics text
+                const aggregatedMetricsText = document.getElementById('aggregated-metrics-text');
+                if (aggregatedMetricsText) {
+                    aggregatedMetricsText.style.color = 'rgb(179, 179, 179)';
+                    aggregatedMetricsText.style.paddingTop = '5px';
+                    aggregatedMetricsText.classList.remove('text-white');
+                }
+            }
         }
         
         // Clean up host names by removing port numbers
