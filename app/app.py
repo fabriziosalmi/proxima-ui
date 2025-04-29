@@ -3998,25 +3998,52 @@ def jobs(host_id):
             cluster_status = connection.cluster.status.get()
             # If it returns more than one node, it's a cluster
             is_clustered = len(cluster_status) > 1
-        except Exception:
+        except Exception as e:
             # If we can't access cluster API, assume it's standalone
             is_clustered = False
+            print(f"Assuming standalone environment: {str(e)}")
         
         # Get all scheduled jobs from the cluster or node
+        jobs_list = []
+        
         try:
             # Try to get any existing cron jobs from cluster API
-            jobs_list = connection.cluster.jobs.get()
-        except Exception:
-            # If cluster API endpoint doesn't exist, try getting from individual nodes
-            jobs_list = []
+            if is_clustered:
+                jobs_list = connection.cluster.jobs.get()
+                print(f"Retrieved {len(jobs_list)} jobs from cluster API")
+            else:
+                # In standalone environment, this will likely fail, but try anyway
+                cluster_jobs = connection.cluster.jobs.get()
+                if cluster_jobs:
+                    jobs_list = cluster_jobs
+                    print(f"Retrieved {len(jobs_list)} jobs from cluster API in standalone mode")
+        except Exception as e:
+            # This exception is expected in standalone environments
+            print(f"Could not retrieve jobs from cluster API: {str(e)}")
+            
+            # If we couldn't get jobs from the cluster API, try individual nodes
             for node in nodes:
+                node_name = node['node']
                 try:
-                    node_jobs = connection.nodes(node['node']).jobs.get()
-                    for job in node_jobs:
-                        job['node'] = node['node']  # Add node info to standalone jobs
-                    jobs_list.extend(node_jobs)
-                except Exception:
-                    pass
+                    print(f"Attempting to retrieve jobs from node {node_name}")
+                    node_jobs = connection.nodes(node_name).jobs.get()
+                    
+                    # Validate that we got a list of jobs
+                    if isinstance(node_jobs, list):
+                        for job in node_jobs:
+                            # Add node information to each job
+                            if isinstance(job, dict):
+                                job['node'] = node_name
+                        
+                        jobs_list.extend(node_jobs)
+                        print(f"Retrieved {len(node_jobs)} jobs from node {node_name}")
+                    else:
+                        print(f"Unexpected response type from node {node_name} jobs API: {type(node_jobs)}")
+                except Exception as node_error:
+                    print(f"Error retrieving jobs from node {node_name}: {str(node_error)}")
+        
+        # Log the final result for debugging
+        print(f"Total jobs retrieved: {len(jobs_list)}")
         
         return render_template('jobs.html',
                             host_id=host_id,
