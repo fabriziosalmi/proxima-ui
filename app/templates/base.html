@@ -343,30 +343,50 @@
                 window.location.reload();
             });
             
-            // Add page transition effects
+            // Add page transition effects with better back button support
             document.querySelectorAll('a:not([target="_blank"])').forEach(link => {
                 link.addEventListener('click', function(e) {
+                    // Only intercept normal navigation (not ctrl/cmd+click or anchor links)
                     if (this.href && !this.href.includes('#') && !e.ctrlKey && !e.metaKey) {
                         e.preventDefault();
-                        document.getElementById('page-loading-indicator').classList.remove('d-none');
-                        document.querySelector('.content-container').classList.add('opacity-50');
+                        const loadingIndicator = document.getElementById('page-loading-indicator');
+                        const contentContainer = document.querySelector('.content-container');
                         
+                        // Show loading indicator
+                        if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+                        if (contentContainer) contentContainer.classList.add('opacity-50');
+                        
+                        // Add a small delay for visual feedback before navigation
                         setTimeout(() => {
+                            // Store the loading state in sessionStorage to prevent infinite loading
+                            // after navigation is complete
+                            sessionStorage.setItem('navigationInProgress', 'false');
                             window.location.href = this.href;
                         }, 100);
                     }
                 });
             });
-            
-            // Add form submission loading indicator
+
+            // Handle form submissions with better back button support
             document.querySelectorAll('form').forEach(form => {
                 form.addEventListener('submit', function() {
                     // Don't show loading for forms with data-no-loading attribute
                     if (!this.hasAttribute('data-no-loading')) {
-                        document.getElementById('page-loading-indicator').classList.remove('d-none');
+                        const loadingIndicator = document.getElementById('page-loading-indicator');
+                        if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+                        
+                        // Store the form submission state
+                        sessionStorage.setItem('formSubmitted', 'true');
                     }
                 });
             });
+
+            // Clean up after page load
+            const loadingIndicator = document.getElementById('page-loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.classList.add('d-none');
+            }
+            document.querySelector('.content-container')?.classList.remove('opacity-50');
         });
     </script>
     

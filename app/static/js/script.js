@@ -45,6 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 300));
     });
+
+    // Properly handle history API for smoother page transitions
+    window.addEventListener('popstate', function(event) {
+        // Hide any loading indicators
+        document.getElementById('page-loading-indicator').classList.add('d-none');
+        document.querySelector('.content-container')?.classList.remove('opacity-50');
+    });
 });
 
 /**
@@ -559,3 +566,29 @@ function initTableSorting() {
         });
     });
 }
+
+// Fix for browser back button infinite loading issue
+window.addEventListener('pageshow', function(event) {
+    // Check if the page is being loaded from cache (back/forward navigation)
+    if (event.persisted) {
+        // Hide any loading indicators that might be stuck
+        document.getElementById('page-loading-indicator').classList.add('d-none');
+        document.querySelector('.content-container')?.classList.remove('opacity-50');
+        
+        // Refresh dynamic content if needed
+        const refreshableContent = document.querySelectorAll('[data-refresh]');
+        refreshableContent.forEach(element => {
+            const refreshUrl = element.getAttribute('data-refresh-url');
+            if (refreshUrl) {
+                fetch(refreshUrl)
+                    .then(response => response.text())
+                    .then(html => {
+                        element.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error refreshing content:', error);
+                    });
+            }
+        });
+    }
+});
