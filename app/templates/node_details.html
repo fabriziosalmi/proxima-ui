@@ -66,7 +66,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="card-title mb-0">Proxmox</h6>
+                        <h6 class="card-title mb-0 fw-bold fs-5">Proxmox</h6>
                         <h1 class="mt-2 mb-0 display-5">{{ node }}</h1>
                         <small>Uptime: {{ (node_status.uptime / 86400)|round(1) }} days</small>
                     </div>
@@ -82,7 +82,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="card-title mb-0">Virtual Machines</h6>
+                        <h6 class="card-title mb-0 fw-bold fs-5">Virtual Machines</h6>
                         <h1 class="mt-2 mb-0 display-5">{{ vms|length }}</h1>
                         <small>{{ vms|selectattr('status', 'equalto', 'running')|list|length }} running</small>
                     </div>
@@ -98,7 +98,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="card-title mb-0">Containers</h6>
+                        <h6 class="card-title mb-0 fw-bold fs-5">Containers</h6>
                         <h1 class="mt-2 mb-0 display-5">{{ containers|length }}</h1>
                         <small>{{ containers|selectattr('status', 'equalto', 'running')|list|length }} running</small>
                     </div>
@@ -113,7 +113,7 @@
         <div class="card bg-secondary text-white h-100">
             <div class="card-body">
                 <div>
-                    <h6 class="card-title mb-0"><i class="fas fa-heartbeat me-1"></i> Health</h6>
+                    <h6 class="card-title mb-0 fw-bold fs-5"><i class="fas fa-heartbeat me-1"></i> Health</h6>
                     
                     <!-- CPU Health -->
                     <div class="d-flex align-items-center mt-2">
