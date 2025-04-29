@@ -444,21 +444,88 @@ def vm_details(host_id, node, vmid):
         vm_info = connection.nodes(node).qemu(vmid).status.current.get()
         
         # Fetch disk usage information if VM is running
-        if vm_info.get('status') == 'running' and 'disks' in vm_info:
-            for disk_id, disk in vm_info['disks'].items():
-                try:
-                    # Get disk usage data from the guest agent if available
-                    guest_disks = connection.nodes(node).qemu(vmid).agent.get('get-fsinfo')
+        if vm_info.get('status') == 'running':
+            try:
+                # Get disk usage data from the guest agent if available
+                guest_disks = connection.nodes(node).qemu(vmid).agent.get('get-fsinfo')
+                
+                # Make sure the disks key exists in vm_info
+                if 'disks' not in vm_info:
+                    vm_info['disks'] = {}
+                
+                # Get config to identify disks
+                vm_config = connection.nodes(node).qemu(vmid).config.get()
+                
+                # Get all disk related config entries
+                disk_configs = {}
+                for key, value in vm_config.items():
+                    if key.startswith('scsi') or key.startswith('virtio') or key.startswith('ide') or key.startswith('sata'):
+                        if 'disk' in value:
+                            disk_configs[key] = value
+                
+                # Now try to associate disks with their usage
+                for disk_id, disk_config in disk_configs.items():
+                    vm_info['disks'][disk_id] = {
+                        'size': 0,
+                        'storage': disk_config.split(',')[0].split(':')[0] if ',' in disk_config else ''
+                    }
                     
-                    if guest_disks and 'result' in guest_disks:
-                        for fs in guest_disks['result']:
-                            # Match disk device with the corresponding entry from agent data
-                            if fs.get('device', '').endswith(disk_id.replace('virtio', 'vd').replace('scsi', 'sd')):
-                                disk['usage'] = fs.get('used-bytes', 0)
-                                disk['total'] = fs.get('total-bytes', 0)
-                except Exception as e:
-                    # The guest agent might not be available, continue without usage info
-                    app_logger.warning(f"Failed to get VM disk usage for {vmid}: {str(e)}")
+                    # Extract size if possible
+                    size_match = re.search(r'size=(\d+[KMGT]?)', disk_config)
+                    if size_match:
+                        size_str = size_match.group(1)
+                        # Convert to bytes (aproximation)
+                        if size_str.endswith('T'):
+                            size = int(float(size_str[:-1]) * 1024**4)
+                        elif size_str.endswith('G'):
+                            size = int(float(size_str[:-1]) * 1024**3)
+                        elif size_str.endswith('M'):
+                            size = int(float(size_str[:-1]) * 1024**2)
+                        elif size_str.endswith('K'):
+                            size = int(float(size_str[:-1]) * 1024)
+                        else:
+                            size = int(size_str)
+                        vm_info['disks'][disk_id]['size'] = size
+                
+                # Match guest agent data with disks
+                if guest_disks and 'result' in guest_disks:
+                    for fs in guest_disks['result']:
+                        # Get device name (like /dev/sda1)
+                        device = fs.get('device', '')
+                        if not device:
+                            continue
+                            
+                        # Extract the base device (sda from /dev/sda1)
+                        base_device = re.search(r'/dev/([a-z]+)', device)
+                        if not base_device:
+                            continue
+                            
+                        device_name = base_device.group(1)
+                        
+                        # Try to match with our disks
+                        for disk_id in vm_info['disks']:
+                            # Map disk_id to device name
+                            # virtio0 -> vda, scsi0 -> sda, etc.
+                            disk_prefix = disk_id.rstrip('0123456789')
+                            disk_num = disk_id[len(disk_prefix):]
+                            
+                            mapped_name = ""
+                            if disk_prefix == 'virtio':
+                                mapped_name = f"vd{chr(97 + int(disk_num))}"
+                            elif disk_prefix == 'scsi':
+                                mapped_name = f"sd{chr(97 + int(disk_num))}"
+                            elif disk_prefix == 'ide':
+                                mapped_name = f"hd{chr(97 + int(disk_num))}"
+                            elif disk_prefix == 'sata':
+                                mapped_name = f"sd{chr(97 + int(disk_num))}"
+                                
+                            if mapped_name and device_name == mapped_name:
+                                vm_info['disks'][disk_id]['usage'] = fs.get('used-bytes', 0)
+                                vm_info['disks'][disk_id]['total'] = fs.get('total-bytes', 0)
+                                break
+            except Exception as e:
+                # The guest agent might not be available, continue without usage info
+                app_logger.warning(f"Failed to get VM disk usage for {vmid}: {str(e)}")
         
         # Get available storages for disk operations
         try:
@@ -501,38 +568,105 @@ def container_details(host_id, node, vmid):
         # Fetch disk usage information if container is running
         if container_info.get('status') == 'running':
             try:
-                # Get disk usage data from the container
-                rootfs = container_info.get('rootfs', {})
-                if not rootfs.get('usage') or not rootfs.get('total'):
-                    # Try to get disk usage data from pct command
+                # First try the 'df' command through the Proxmox API
+                try:
                     disk_data = connection.nodes(node).lxc(vmid).get('df')
+                    
+                    # Check if rootfs data exists in container_info
+                    if 'rootfs' not in container_info:
+                        container_info['rootfs'] = {}
+                    
+                    # Process disk data to get storage information
                     if disk_data and 'data' in disk_data:
                         for entry in disk_data['data']:
                             if entry.get('mountpoint') == '/':
-                                if 'rootfs' not in container_info:
-                                    container_info['rootfs'] = {}
                                 container_info['rootfs']['usage'] = entry.get('used', 0)
                                 container_info['rootfs']['total'] = entry.get('size', 0)
+                                container_info['rootfs']['usage_percent'] = round((entry.get('used', 0) / entry.get('size', 1)) * 100, 1)
                                 break
                 
-                # Also check for mount points
-                if 'mp' in container_info:
-                    for mp_key, mp_data in container_info['mp'].items():
-                        if disk_data and 'data' in disk_data:
-                            for entry in disk_data['data']:
-                                if entry.get('mountpoint') == mp_key:
-                                    container_info['mp'][mp_key]['usage'] = entry.get('used', 0)
-                                    container_info['mp'][mp_key]['total'] = entry.get('size', 0)
-                                    break
+                    # Also check for mount points
+                    if 'mp' in container_info:
+                        for mp_key, mp_data in container_info['mp'].items():
+                            if disk_data and 'data' in disk_data:
+                                for entry in disk_data['data']:
+                                    if entry.get('mountpoint') == mp_key:
+                                        container_info['mp'][mp_key]['usage'] = entry.get('used', 0)
+                                        container_info['mp'][mp_key]['total'] = entry.get('size', 0)
+                                        container_info['mp'][mp_key]['usage_percent'] = round((entry.get('used', 0) / entry.get('size', 1)) * 100, 1)
+                                        break
+                except Exception as e:
+                    app_logger.warning(f"Failed to get df data for container {vmid}: {str(e)}")
+
+                # If rootfs still doesn't have usage info, try to get it from config
+                if 'rootfs' in container_info and 'usage' not in container_info['rootfs']:
+                    try:
+                        # Get container config to find rootfs size
+                        config = connection.nodes(node).lxc(vmid).config.get()
+                        
+                        # Parse rootfs info from config
+                        rootfs_config = config.get('rootfs', '')
+                        if rootfs_config:
+                            # Extract size if specified (e.g., "local:100:vm-100-disk-0,size=10G")
+                            size_match = re.search(r'size=(\d+[KMGT]?)', rootfs_config)
+                            if size_match:
+                                size_str = size_match.group(1)
+                                # Convert to bytes (approximation)
+                                if size_str.endswith('T'):
+                                    size = int(float(size_str[:-1]) * 1024**4)
+                                elif size_str.endswith('G'):
+                                    size = int(float(size_str[:-1]) * 1024**3)
+                                elif size_str.endswith('M'):
+                                    size = int(float(size_str[:-1]) * 1024**2)
+                                elif size_str.endswith('K'):
+                                    size = int(float(size_str[:-1]) * 1024)
+                                else:
+                                    size = int(size_str)
+                                
+                                container_info['rootfs']['total'] = size
+                                
+                                # Get usage by executing "df -B1" inside the container
+                                try:
+                                    # Execute df command inside the container
+                                    exec_result = connection.nodes(node).lxc(vmid).status.exec.post(
+                                        command='df',
+                                        stdout=1
+                                    )
+                                    
+                                    if 'data' in exec_result:
+                                        # Parse df output
+                                        df_output = exec_result['data']
+                                        for line in df_output.split('\n'):
+                                            if line.endswith('/'):
+                                                parts = line.split()
+                                                if len(parts) >= 4:
+                                                    used = int(parts[2]) * 1024  # KB to bytes
+                                                    container_info['rootfs']['usage'] = used
+                                                    container_info['rootfs']['usage_percent'] = round((used / size) * 100, 1)
+                                                    break
+                                except Exception as e:
+                                    app_logger.warning(f"Failed to get disk usage from container {vmid} exec: {str(e)}")
+                    except Exception as e:
+                        app_logger.warning(f"Failed to get container config for {vmid}: {str(e)}")
             except Exception as e:
-                # The guest agent might not be available, continue without usage info
+                # Continue without usage info if we can't get it
                 app_logger.warning(f"Failed to get container disk usage: {str(e)}")
+        
+        # Get available storage pools for operations
+        try:
+            available_storages = connection.nodes(node).storage.get()
+            # Filter storages that can contain containers
+            available_storages = [s for s in available_storages if 'rootdir' in s.get('content', '').split(',')]
+        except Exception as e:
+            app_logger.warning(f"Failed to get storage list: {str(e)}")
+            available_storages = []
         
         return render_template('container_details.html',
                             host_id=host_id,
                             node=node,
                             vmid=vmid,
-                            container_info=container_info)
+                            container_info=container_info,
+                            available_storages=available_storages)
     except Exception as e:
         flash(f"Failed to get container details: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
@@ -555,11 +689,10 @@ def vm_snapshots(host_id, node, vmid):
         # Convert timestamps to human-readable format
         for snapshot in snapshots:
             if 'snaptime' in snapshot:
-                try:
-                    timestamp = int(snapshot['snaptime'])
-                    snapshot['snaptime'] = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-                except (ValueError, TypeError):
-                    pass
+                snapshot['human_time'] = datetime.datetime.fromtimestamp(
+                    snapshot['snaptime']).strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                snapshot['human_time'] = 'N/A'
         
         return render_template('vm_snapshots.html',
                             host_id=host_id,
@@ -570,72 +703,6 @@ def vm_snapshots(host_id, node, vmid):
     except Exception as e:
         flash(f"Failed to get VM snapshots: {str(e)}", 'danger')
         return redirect(url_for('vm_details', host_id=host_id, node=node, vmid=vmid))
-
-@app.route('/vm/<host_id>/<node>/<vmid>/snapshots/create', methods=['POST'])
-def create_vm_snapshot(host_id, node, vmid):
-    if host_id not in proxmox_connections:
-        flash("Host not found", 'danger')
-        return redirect(url_for('index'))
-    
-    name = request.form.get('name')
-    description = request.form.get('description', '')
-    include_ram = request.form.get('include_ram') == 'on'
-    
-    if not name:
-        flash("Snapshot name is required", 'danger')
-        return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
-    
-    try:
-        connection = proxmox_connections[host_id]['connection']
-        
-        # Create snapshot
-        connection.nodes(node).qemu(vmid).snapshot.post(
-            snapname=name,
-            description=description,
-            vmstate=1 if include_ram else 0
-        )
-        
-        flash(f"Snapshot '{name}' created successfully", 'success')
-    except Exception as e:
-        flash(f"Failed to create snapshot: {str(e)}", 'danger')
-    
-    return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
-
-@app.route('/vm/<host_id>/<node>/<vmid>/snapshots/<snapname>/restore', methods=['POST'])
-def restore_vm_snapshot(host_id, node, vmid, snapname):
-    if host_id not in proxmox_connections:
-        flash("Host not found", 'danger')
-        return redirect(url_for('index'))
-    
-    try:
-        connection = proxmox_connections[host_id]['connection']
-        
-        # Restore snapshot
-        connection.nodes(node).qemu(vmid).snapshot(snapname).rollback.post()
-        
-        flash(f"Snapshot '{snapname}' restored successfully", 'success')
-    except Exception as e:
-        flash(f"Failed to restore snapshot: {str(e)}", 'danger')
-    
-    return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
-
-@app.route('/vm/<host_id>/<node>/<vmid>/snapshots/<snapname>/delete', methods=['POST'])
-def delete_vm_snapshot(host_id, node, vmid, snapname):
-    if host_id not in proxmox_connections:
-        flash("Host not found", 'danger')
-        return redirect(url_for('index'))
-    
-    try:
-        connection = proxmox_connections[host_id]['connection']
-        
-        # Delete snapshot
-        connection.nodes(node).qemu(vmid).snapshot(snapname).delete()
-        
-        flash(f"Snapshot '{snapname}' deleted successfully", 'success')
-    except Exception as e:
-        flash(f"Failed to delete snapshot: {str(e)}", 'danger')
-    
-    return redirect(url_for('vm_snapshots', host_id=host_id, node=node, vmid=vmid))
 
 @app.route('/container/<host_id>/<node>/<vmid>/snapshots')
 def container_snapshots(host_id, node, vmid):
@@ -4320,24 +4387,23 @@ def jobs(host_id):
             
             # If we couldn't get jobs from the cluster API, try individual nodes
             for node in nodes:
-                node_name = node['node']
                 try:
-                    print(f"Attempting to retrieve jobs from node {node_name}")
-                    node_jobs = connection.nodes(node_name).jobs.get()
+                    print(f"Attempting to retrieve jobs from node {node['node']}")
+                    node_jobs = connection.nodes(node['node']).jobs.get()
                     
                     # Validate that we got a list of jobs
                     if isinstance(node_jobs, list):
                         for job in node_jobs:
                             # Add node information to each job
                             if isinstance(job, dict):
-                                job['node'] = node_name
+                                job['node'] = node['node']
                         
                         jobs_list.extend(node_jobs)
-                        print(f"Retrieved {len(node_jobs)} jobs from node {node_name}")
+                        print(f"Retrieved {len(node_jobs)} jobs from node {node['node']}")
                     else:
-                        print(f"Unexpected response type from node {node_name} jobs API: {type(node_jobs)}")
+                        print(f"Unexpected response type from node {node['node']} jobs API: {type(node_jobs)}")
                 except Exception as node_error:
-                    print(f"Error retrieving jobs from node {node_name}: {str(node_error)}")
+                    print(f"Error retrieving jobs from node {node['node']}: {str(node_error)}")
         
         # Log the final result for debugging
         print(f"Total jobs retrieved: {len(jobs_list)}")
@@ -5212,7 +5278,7 @@ def node_maintenance(host_id, node):
                         'with-local-disks': 1
                     }
                     
-                    # Migrate running VMs first if online migration is enabled
+                    # Online migration
                     online_migration = request.form.get('online_migration') == 'on'
                     if online_migration:
                         params['online'] = 1

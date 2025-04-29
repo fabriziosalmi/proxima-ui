@@ -7,3 +7,7 @@
 [2025-04-29 20:24:10,337] [INFO] [app] Home page accessed, found 2 configured hosts
 [2025-04-29 20:25:43,256] [WARNING] [app] Failed to get container disk usage: 501 Not Implemented: Method 'GET /nodes/dell/lxc/109/df' not implemented
 [2025-04-29 20:28:50,681] [WARNING] [app] Failed to get container disk usage: 501 Not Implemented: Method 'GET /nodes/dell/lxc/102/df' not implemented
+[2025-04-29 20:34:02,111] [INFO] [app] Home page accessed, found 2 configured hosts
+[2025-04-29 20:40:37,632] [INFO] [app] Home page accessed, found 2 configured hosts
+[2025-04-29 20:49:15,446] [WARNING] [app] Failed to get df data for container 108: 501 Not Implemented: Method 'GET /nodes/dell/lxc/108/df' not implemented
+[2025-04-29 20:52:40,503] [WARNING] [app] Failed to get df data for container 108: 501 Not Implemented: Method 'GET /nodes/dell/lxc/108/df' not implemented
