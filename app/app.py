@@ -157,6 +157,9 @@ def index():
     # Add current datetime for the dashboard
     now = datetime.datetime.now()
     
+    # Log the homepage access
+    app_logger.info(f"Home page accessed, found {len(proxmox_connections)} configured hosts")
+    
     # If there are no hosts, just return the empty dashboard
     if not proxmox_connections:
         return render_template('index.html', hosts=proxmox_connections, now=now)
@@ -4514,13 +4517,13 @@ def logs():
             # Parse log lines into structured format
             for line in log_lines:
                 try:
-                    # Example log format: [2025-04-29 12:34:56] [INFO] [app] Message here
+                    # Example log format: [2023-04-29 12:34:56,123] [INFO] [app] Message here
                     # Extract components using regex
                     match = re.match(r'\[(.*?)\]\s*\[(.*?)\]\s*\[(.*?)\]\s*(.*)', line)
                     if match:
                         timestamp_str, level, source, message = match.groups()
                         try:
-                            timestamp = datetime.datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                            timestamp = datetime.datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S,%f')
                         except ValueError:
                             timestamp = datetime.datetime.now()  # Fallback
                             
@@ -4561,13 +4564,13 @@ def logs():
                                 'message': line.strip()
                             })
                 except Exception as e:
-                    print(f"Error parsing log line: {e}")
+                    app_logger.error(f"Error parsing log line: {e}")
                     
             # Sort logs by timestamp (newest first)
             app_logs.sort(key=lambda x: x['timestamp'], reverse=True)
                     
         except Exception as e:
-            print(f"Error reading log file: {e}")
+            app_logger.error(f"Error reading log file: {e}")
             # Fall back to sample logs
             app_logs = create_sample_logs()
     else:
@@ -4583,6 +4586,9 @@ def logs():
     end = start + per_page
     logs_page = app_logs[start:end]
     total_pages = (len(app_logs) // per_page) + (1 if len(app_logs) % per_page else 0)
+    
+    # Log that someone viewed the logs
+    app_logger.info(f"Logs page viewed with level filter: {log_level}, page {page}")
     
     return render_template('logs.html', 
                           logs=logs_page, 

@@ -1,2 +1,5 @@
 [2025-04-29 10:15:30,123] [INFO] [app] Application started successfully
 [2025-04-29 10:15:35,456] [WARNING] [api] Connection timeout to Proxmox host
+[2025-04-29 19:45:17,059] [INFO] [app] Logs page viewed with level filter: all, page 1
+[2025-04-29 19:55:28,055] [INFO] [app] Logs page viewed with level filter: all, page 1
+[2025-04-29 19:55:30,861] [INFO] [app] Logs page viewed with level filter: all, page 1
