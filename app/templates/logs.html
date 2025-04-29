@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - System Logs{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-clipboard-list"></i> System Logs</h1>
+        <p class="text-muted">Application logs and system events</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Log Entries</h5>
+                <div>
+                    <form action="{{ url_for('logs') }}" method="get" class="d-flex align-items-center">
+                        <div class="me-2">
+                            <select class="form-select form-select-sm" name="level" onchange="this.form.submit()">
+                                <option value="all" {% if log_level == 'all' %}selected{% endif %}>All Levels</option>
+                                <option value="info" {% if log_level == 'info' %}selected{% endif %}>Info</option>
+                                <option value="warning" {% if log_level == 'warning' %}selected{% endif %}>Warning</option>
+                                <option value="error" {% if log_level == 'error' %}selected{% endif %}>Error</option>
+                                <option value="debug" {% if log_level == 'debug' %}selected{% endif %}>Debug</option>
+                            </select>
+                        </div>
+                        <div class="me-2">
+                            <select class="form-select form-select-sm" name="per_page" onchange="this.form.submit()">
+                                <option value="50" {% if per_page == 50 %}selected{% endif %}>50 per page</option>
+                                <option value="100" {% if per_page == 100 %}selected{% endif %}>100 per page</option>
+                                <option value="200" {% if per_page == 200 %}selected{% endif %}>200 per page</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 180px">Timestamp</th>
+                                <th style="width: 100px">Level</th>
+                                <th style="width: 120px">Source</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr class="{% if log.level == 'ERROR' %}table-danger{% elif log.level == 'WARNING' %}table-warning{% elif log.level == 'DEBUG' %}table-info{% endif %}">
+                                <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>
+                                    {% if log.level == 'ERROR' %}
+                                    <span class="badge bg-danger">ERROR</span>
+                                    {% elif log.level == 'WARNING' %}
+                                    <span class="badge bg-warning text-dark">WARNING</span>
+                                    {% elif log.level == 'INFO' %}
+                                    <span class="badge bg-info text-dark">INFO</span>
+                                    {% elif log.level == 'DEBUG' %}
+                                    <span class="badge bg-secondary">DEBUG</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ log.level }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.source }}</td>
+                                <td>{{ log.message }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <nav aria-label="Log pagination">
+                    <ul class="pagination justify-content-center mb-0">
+                        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('logs', page=page-1, per_page=per_page, level=log_level) }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p >= page - 2 and p <= page + 2 %}
+                            <li class="page-item {% if p == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('logs', page=p, per_page=per_page, level=log_level) }}">{{ p }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('logs', page=page+1, per_page=per_page, level=log_level) }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Log Management</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary">
+                        <i class="fas fa-file-download me-2"></i> Export Logs
+                    </button>
+                    <button type="button" class="btn btn-outline-danger">
+                        <i class="fas fa-trash me-2"></i> Clear Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Log Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-2">
+                                <span class="badge bg-info p-2"><i class="fas fa-info-circle fa-fw"></i></span>
+                            </div>
+                            <div>
+                                <div class="small text-muted">Info</div>
+                                <div class="fw-bold">{{ logs|selectattr('level', 'equalto', 'INFO')|list|length }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-2">
+                                <span class="badge bg-warning p-2"><i class="fas fa-exclamation-triangle fa-fw"></i></span>
+                            </div>
+                            <div>
+                                <div class="small text-muted">Warnings</div>
+                                <div class="fw-bold">{{ logs|selectattr('level', 'equalto', 'WARNING')|list|length }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-2">
+                                <span class="badge bg-danger p-2"><i class="fas fa-times-circle fa-fw"></i></span>
+                            </div>
+                            <div>
+                                <div class="small text-muted">Errors</div>
+                                <div class="fw-bold">{{ logs|selectattr('level', 'equalto', 'ERROR')|list|length }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-2">
+                                <span class="badge bg-secondary p-2"><i class="fas fa-bug fa-fw"></i></span>
+                            </div>
+                            <div>
+                                <div class="small text-muted">Debug</div>
+                                <div class="fw-bold">{{ logs|selectattr('level', 'equalto', 'DEBUG')|list|length }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Auto-refresh logs every 60 seconds if auto-refresh is enabled
+        const autoRefresh = localStorage.getItem('log_auto_refresh') === 'true';
+        
+        if (autoRefresh) {
+            setInterval(function() {
+                window.location.reload();
+            }, 60000); // 60 seconds
+        }
+    });
+</script>
+{% endblock %}

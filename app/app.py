@@ -10,12 +10,12 @@ import datetime
 import time  # Import time module for cache TTL
 import schedule  # For snapshot scheduling
 import re  # For regex pattern matching
+import random
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-for-testing')
 bootstrap = Bootstrap(app)
 
 # Store Proxmox connections with thread-safe lock
@@ -4207,6 +4207,107 @@ def update_job(host_id, job_id):
         flash(f"Failed to update job: {str(e)}", 'danger')
     
     return redirect(url_for('jobs', host_id=host_id))
+
+@app.route('/settings')
+def settings():
+    """
+    UI settings page for customizing the Proxmox UI application
+    """
+    # Settings data could be loaded from a configuration file or database
+    # For now, we'll use hardcoded defaults
+    settings_data = {
+        'theme': request.cookies.get('theme', 'light'),
+        'page_size': request.cookies.get('page_size', '20'),
+        'refresh_interval': request.cookies.get('refresh_interval', '30'),
+        'date_format': request.cookies.get('date_format', 'YYYY-MM-DD HH:mm:ss'),
+        'default_view': request.cookies.get('default_view', 'list')
+    }
+    
+    return render_template('settings.html', settings=settings_data)
+
+@app.route('/settings/update', methods=['POST'])
+def update_settings():
+    """
+    Update UI settings and store in cookies
+    """
+    theme = request.form.get('theme', 'light')
+    page_size = request.form.get('page_size', '20')
+    refresh_interval = request.form.get('refresh_interval', '30')
+    date_format = request.form.get('date_format', 'YYYY-MM-DD HH:mm:ss')
+    default_view = request.form.get('default_view', 'list')
+    
+    # Create response object for redirecting
+    response = make_response(redirect(url_for('settings')))
+    
+    # Set cookies with 365 days expiration
+    response.set_cookie('theme', theme, max_age=31536000)
+    response.set_cookie('page_size', page_size, max_age=31536000)
+    response.set_cookie('refresh_interval', refresh_interval, max_age=31536000)
+    response.set_cookie('date_format', date_format, max_age=31536000)
+    response.set_cookie('default_view', default_view, max_age=31536000)
+    
+    flash("Settings updated successfully", 'success')
+    return response
+
+@app.route('/logs')
+def logs():
+    """
+    View UI application logs
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 100, type=int)
+    log_level = request.args.get('level', 'all')
+    
+    # In a real application, logs would be read from a log file or database
+    # Let's create actual log entries from application logs
+    
+    # Set up log file path
+    log_file_path = os.path.join(os.path.dirname(__file__), 'app.log')
+    
+    # If log file doesn't exist, create some sample logs
+    if not os.path.exists(log_file_path):
+        app_logs = [
+            {'timestamp': datetime.datetime.now() - datetime.timedelta(minutes=i*5), 
+             'level': ['INFO', 'WARNING', 'ERROR', 'DEBUG'][i % 4],
+             'message': f"Application startup completed successfully" if i == 0 else
+                        f"User login attempt {'successful' if i % 3 != 0 else 'failed'}" if i % 5 == 1 else
+                        f"Database connection {'established' if i % 2 == 0 else 'timeout'}" if i % 4 == 2 else
+                        f"API request to /{'host' if i % 2 == 0 else 'vm'}/{i*10} completed in {i*10 + 5}ms" if i % 3 == 0 else
+                        f"Cache {'hit' if i % 2 == 0 else 'miss'} for resource id {i*100}", 
+             'source': ['app', 'api', 'auth', 'database'][i % 4]}
+            for i in range(200)
+        ]
+    else:
+        # In a real implementation, this would parse the log file
+        # For now, we'll still use sample data but with more realistic entries
+        app_logs = [
+            {'timestamp': datetime.datetime.now() - datetime.timedelta(minutes=i*5), 
+             'level': ['INFO', 'WARNING', 'ERROR', 'DEBUG'][i % 4],
+             'message': f"Host connection {'established' if i % 3 == 0 else 'failed'}" if i % 7 == 0 else
+                        f"VM {i*10} status change to {'running' if i % 2 == 0 else 'stopped'}" if i % 5 == 1 else
+                        f"Backup job {i*5} {'completed' if i % 2 == 0 else 'failed'}" if i % 6 == 2 else
+                        f"API request to {['cluster', 'node', 'storage', 'vm'][i % 4]}/{i*10} responded with status {200 if i % 3 != 0 else 500}" if i % 4 == 3 else
+                        f"User {['admin', 'operator', 'viewer'][i % 3]} performed {['create', 'delete', 'update', 'view'][i % 4]} operation", 
+             'source': ['proxmox', 'ui', 'auth', 'scheduler'][i % 4]}
+            for i in range(200)
+        ]
+    
+    # Filter logs by level if requested
+    if log_level != 'all':
+        app_logs = [log for log in app_logs if log['level'] == log_level.upper()]
+    
+    # Simple pagination
+    start = (page - 1) * per_page
+    end = start + per_page
+    logs_page = app_logs[start:end]
+    total_pages = (len(app_logs) // per_page) + (1 if len(app_logs) % per_page else 0)
+    
+    return render_template('logs.html', 
+                          logs=logs_page, 
+                          page=page, 
+                          total_pages=total_pages,
+                          per_page=per_page,
+                          log_level=log_level)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

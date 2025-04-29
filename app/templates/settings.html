@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Settings{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-cog"></i> Settings</h1>
+        <p class="text-muted">Customize your Proxmox UI experience</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>User Interface Settings</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('update_settings') }}" method="post">
+                    <div class="mb-3">
+                        <label for="theme" class="form-label">Theme</label>
+                        <select class="form-select" id="theme" name="theme">
+                            <option value="light" {% if settings.theme == 'light' %}selected{% endif %}>Light</option>
+                            <option value="dark" {% if settings.theme == 'dark' %}selected{% endif %}>Dark</option>
+                            <option value="auto" {% if settings.theme == 'auto' %}selected{% endif %}>Auto (follow system)</option>
+                        </select>
+                        <div class="form-text">Choose the UI theme preference</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="page_size" class="form-label">Default Page Size</label>
+                        <select class="form-select" id="page_size" name="page_size">
+                            <option value="10" {% if settings.page_size == '10' %}selected{% endif %}>10 items</option>
+                            <option value="20" {% if settings.page_size == '20' %}selected{% endif %}>20 items</option>
+                            <option value="50" {% if settings.page_size == '50' %}selected{% endif %}>50 items</option>
+                            <option value="100" {% if settings.page_size == '100' %}selected{% endif %}>100 items</option>
+                        </select>
+                        <div class="form-text">Number of items to display per page in tables</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="refresh_interval" class="form-label">Dashboard Refresh Interval</label>
+                        <select class="form-select" id="refresh_interval" name="refresh_interval">
+                            <option value="0" {% if settings.refresh_interval == '0' %}selected{% endif %}>No auto-refresh</option>
+                            <option value="10" {% if settings.refresh_interval == '10' %}selected{% endif %}>10 seconds</option>
+                            <option value="30" {% if settings.refresh_interval == '30' %}selected{% endif %}>30 seconds</option>
+                            <option value="60" {% if settings.refresh_interval == '60' %}selected{% endif %}>1 minute</option>
+                            <option value="300" {% if settings.refresh_interval == '300' %}selected{% endif %}>5 minutes</option>
+                        </select>
+                        <div class="form-text">How often the dashboard and monitoring screens should refresh</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="date_format" class="form-label">Date Format</label>
+                        <select class="form-select" id="date_format" name="date_format">
+                            <option value="YYYY-MM-DD HH:mm:ss" {% if settings.date_format == 'YYYY-MM-DD HH:mm:ss' %}selected{% endif %}>YYYY-MM-DD HH:mm:ss</option>
+                            <option value="MM/DD/YYYY HH:mm:ss" {% if settings.date_format == 'MM/DD/YYYY HH:mm:ss' %}selected{% endif %}>MM/DD/YYYY HH:mm:ss</option>
+                            <option value="DD/MM/YYYY HH:mm:ss" {% if settings.date_format == 'DD/MM/YYYY HH:mm:ss' %}selected{% endif %}>DD/MM/YYYY HH:mm:ss</option>
+                            <option value="MMM DD, YYYY HH:mm" {% if settings.date_format == 'MMM DD, YYYY HH:mm' %}selected{% endif %}>MMM DD, YYYY HH:mm</option>
+                        </select>
+                        <div class="form-text">Format for displaying dates throughout the application</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="default_view" class="form-label">Default View</label>
+                        <select class="form-select" id="default_view" name="default_view">
+                            <option value="list" {% if settings.default_view == 'list' %}selected{% endif %}>List View</option>
+                            <option value="grid" {% if settings.default_view == 'grid' %}selected{% endif %}>Grid View</option>
+                        </select>
+                        <div class="form-text">Default view for resource listings</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>About Proxmox UI</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Version:</strong> 1.0.0</p>
+                <p><strong>Framework:</strong> Flask</p>
+                <p><strong>Proxmox API Client:</strong> ProxmoxAPI</p>
+                <p><strong>Released:</strong> April 2025</p>
+                
+                <div class="d-grid gap-2 mt-4">
+                    <a href="https://github.com/user/proxmox-ui" target="_blank" class="btn btn-outline-secondary">
+                        <i class="fab fa-github me-2"></i> GitHub Repository
+                    </a>
+                    <a href="https://docs.proxmox.com/en/latest/" target="_blank" class="btn btn-outline-secondary">
+                        <i class="fas fa-book me-2"></i> Proxmox Documentation
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Local Storage</h5>
+            </div>
+            <div class="card-body">
+                <p>Proxmox UI stores your preferences in browser cookies. These settings are only stored locally on your device.</p>
+                <button type="button" class="btn btn-danger" id="clearSettings">
+                    Reset All Settings
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Handle the reset settings button
+        $('#clearSettings').click(function() {
+            if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                // Clear all cookies related to settings
+                document.cookie.split(";").forEach(function(c) {
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                });
+                
+                // Reload the page to see changes
+                location.reload();
+            }
+        });
+        
+        // Apply theme change immediately when selected
+        $('#theme').change(function() {
+            const theme = $(this).val();
+            if (theme === 'dark') {
+                $('body').attr('data-bs-theme', 'dark');
+            } else if (theme === 'light') {
+                $('body').attr('data-bs-theme', 'light');
+            } else {
+                // Auto theme based on system preference
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    $('body').attr('data-bs-theme', 'dark');
+                } else {
+                    $('body').attr('data-bs-theme', 'light');
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
