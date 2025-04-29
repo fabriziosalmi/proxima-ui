@@ -56,7 +56,7 @@
 
 <!-- Resource Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-primary text-white h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -72,7 +72,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-success text-white h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -88,7 +88,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-info text-white h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -109,6 +109,36 @@
                     </div>
                     <div>
                         <i class="fas fa-memory fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Storage</h6>
+                        {% if container_info.get('rootfs') and container_info.rootfs.get('total') %}
+                            {% set storage_gb = (container_info.rootfs.get('total', 0) / (1024*1024*1024)) %}
+                            {% if storage_gb == storage_gb|round(0) %}
+                                <h1 class="mt-2 mb-0 display-5">{{ storage_gb|round(0)|int }}</h1>
+                            {% else %}
+                                <h1 class="mt-2 mb-0 display-5">{{ storage_gb|round(1) }}</h1>
+                            {% endif %}
+                            <small>GB rootfs
+                            {% if container_info.rootfs.get('usage') is defined %}
+                                ({{ (container_info.rootfs.get('usage') / container_info.rootfs.get('total') * 100)|round(2) }}% used)
+                            {% endif %}
+                            </small>
+                        {% else %}
+                            <h1 class="mt-2 mb-0 display-5">-</h1>
+                            <small>No storage info</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <i class="fas fa-hdd fa-3x opacity-50"></i>
                     </div>
                 </div>
             </div>

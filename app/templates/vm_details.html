@@ -56,7 +56,7 @@
 
 <!-- Resource Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-primary text-white h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -72,7 +72,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-success text-white h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -88,13 +88,12 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-info text-white h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="card-title mb-0">Memory</h6>
-                        <td data-value="{{ vm_info.maxmem }}">
                         {% if (vm_info.maxmem / (1024*1024)) >= 1024 %}
                             {% set memory_gb = ((vm_info.maxmem / (1024*1024)) / 1024) %}
                             {% if memory_gb == memory_gb|round(0) %}
@@ -107,10 +106,44 @@
                             <h1 class="mt-2 mb-0 display-5">{{ (vm_info.maxmem / (1024*1024))|round(0) }}</h1>
                             <small>MB Total{% if vm_info.status == 'running' %} ({{ (vm_info.mem / vm_info.maxmem * 100)|round(2) }}% used){% endif %}</small>
                         {% endif %}
-                    </td>
                     </div>
                     <div>
                         <i class="fas fa-memory fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Storage</h6>
+                        {% set found_disk = false %}
+                        {% for key, disk in vm_info.get('disks', {}).items() %}
+                            {% if not found_disk and (key == 'sda' or key == 'scsi0' or key == 'virtio0' or key == 'ide0') %}
+                                {% set found_disk = true %}
+                                {% set storage_gb = (disk.get('size', 0) / (1024*1024*1024)) %}
+                                {% if storage_gb == storage_gb|round(0) %}
+                                    <h1 class="mt-2 mb-0 display-5">{{ storage_gb|round(0)|int }}</h1>
+                                {% else %}
+                                    <h1 class="mt-2 mb-0 display-5">{{ storage_gb|round(1) }}</h1>
+                                {% endif %}
+                                <small>GB root disk
+                                {% if disk.usage is defined and disk.total is defined %}
+                                    ({{ (disk.usage / disk.total * 100)|round(2) }}% used)
+                                {% endif %}
+                                </small>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not found_disk %}
+                            <h1 class="mt-2 mb-0 display-5">-</h1>
+                            <small>No root disk info</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <i class="fas fa-hdd fa-3x opacity-50"></i>
                     </div>
                 </div>
             </div>
