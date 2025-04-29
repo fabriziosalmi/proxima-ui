@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Batch Configuration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item active">Batch Configuration</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-sliders-h"></i> Batch Configuration</h1>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> This tool allows you to apply the same configuration changes to multiple VMs or containers at once.
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Batch Configuration Settings</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('batch_config', host_id=host_id, node=node) }}" method="post">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label for="resource_type" class="form-label">Resource Type</label>
+                        <select class="form-select" id="resource_type" name="resource_type" required>
+                            <option value="">Select resource type</option>
+                            <option value="vm">Virtual Machines (QEMU/KVM)</option>
+                            <option value="container">Containers (LXC)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <h4 class="mb-3">Select Resources</h4>
+                    
+                    <div id="vm_selection" class="mb-3" style="display: none;">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Running VMs will need to be restarted for some changes to take effect.
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <div class="form-check">
+                                                <input class="form-check-input select-all-vm" type="checkbox" id="select-all-vm">
+                                                <label class="form-check-label" for="select-all-vm"></label>
+                                            </div>
+                                        </th>
+                                        <th>VMID</th>
+                                        <th>Name</th>
+                                        <th>Node</th>
+                                        <th>Status</th>
+                                        <th>Current CPU</th>
+                                        <th>Current Memory</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vm in vms %}
+                                    <tr>
+                                        <td>
+                                            <div class="form-check">
+                                                <input class="form-check-input vm-checkbox" type="checkbox" name="resource_ids" value="{{ vm.node }}:{{ vm.vmid }}">
+                                            </div>
+                                        </td>
+                                        <td>{{ vm.vmid }}</td>
+                                        <td>{{ vm.name }}</td>
+                                        <td>{{ vm.node }}</td>
+                                        <td>
+                                            {% if vm.status == 'running' %}
+                                                <span class="badge bg-success">Running</span>
+                                            {% elif vm.status == 'stopped' %}
+                                                <span class="badge bg-danger">Stopped</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ vm.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ vm.cpus }}</td>
+                                        <td>{{ (vm.maxmem / (1024*1024))|round(0) }} MB</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="container_selection" class="mb-3" style="display: none;">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Running containers will need to be restarted for some changes to take effect.
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <div class="form-check">
+                                                <input class="form-check-input select-all-ct" type="checkbox" id="select-all-ct">
+                                                <label class="form-check-label" for="select-all-ct"></label>
+                                            </div>
+                                        </th>
+                                        <th>CTID</th>
+                                        <th>Name</th>
+                                        <th>Node</th>
+                                        <th>Status</th>
+                                        <th>Current CPU</th>
+                                        <th>Current Memory</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for container in containers %}
+                                    <tr>
+                                        <td>
+                                            <div class="form-check">
+                                                <input class="form-check-input ct-checkbox" type="checkbox" name="resource_ids" value="{{ container.node }}:{{ container.vmid }}">
+                                            </div>
+                                        </td>
+                                        <td>{{ container.vmid }}</td>
+                                        <td>{{ container.name }}</td>
+                                        <td>{{ container.node }}</td>
+                                        <td>
+                                            {% if container.status == 'running' %}
+                                                <span class="badge bg-success">Running</span>
+                                            {% elif container.status == 'stopped' %}
+                                                <span class="badge bg-danger">Stopped</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ container.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ container.cpus }}</td>
+                                        <td>{{ (container.maxmem / (1024*1024))|round(0) }} MB</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <h4 class="mb-3">Configuration Changes</h4>
+                    <p class="text-muted">Select which settings you want to update for all selected resources.</p>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="update_cpu" name="update_cpu">
+                                <label class="form-check-label fw-bold" for="update_cpu">CPU Configuration</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="cores" class="form-label">CPU Cores</label>
+                                <input type="number" class="form-control" id="cores" name="cores" min="1" value="1">
+                            </div>
+                            
+                            <div class="mb-3 vm-only-option" style="display: none;">
+                                <label for="cpu_type" class="form-label">CPU Type</label>
+                                <select class="form-select" id="cpu_type" name="cpu_type">
+                                    <option value="host">Host (best performance)</option>
+                                    <option value="kvm64">KVM64 (compatible)</option>
+                                    <option value="x86-64-v2">x86-64-v2</option>
+                                    <option value="x86-64-v3">x86-64-v3</option>
+                                    <option value="x86-64-v4">x86-64-v4</option>
+                                </select>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="update_cpu_type" name="update_cpu_type">
+                                    <label class="form-check-label" for="update_cpu_type">Update CPU Type</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="update_memory" name="update_memory">
+                                <label class="form-check-label fw-bold" for="update_memory">Memory Configuration</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="memory" class="form-label">Memory (MB)</label>
+                                <input type="number" class="form-control" id="memory" name="memory" min="128" value="512" step="128">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="update_network" name="update_network">
+                                <label class="form-check-label fw-bold" for="update_network">Network Configuration</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3 vm-only-option" style="display: none;">
+                                <label for="net_model" class="form-label">Network Model</label>
+                                <select class="form-select" id="net_model" name="net_model">
+                                    <option value="virtio">VirtIO (paravirtualized)</option>
+                                    <option value="e1000">Intel E1000</option>
+                                    <option value="rtl8139">Realtek RTL8139</option>
+                                    <option value="vmxnet3">VMware vmxnet3</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="net_bridge" class="form-label">Bridge</label>
+                                <input type="text" class="form-control" id="net_bridge" name="net_bridge" value="vmbr0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="update_description" name="update_description">
+                                <label class="form-check-label fw-bold" for="update_description">Description</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <textarea class="form-control" id="description" name="description" rows="3" placeholder="Common description for all selected resources"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="update_startup" name="update_startup">
+                                <label class="form-check-label fw-bold" for="update_startup">Startup/Shutdown Order</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="order" class="form-label">Startup Order</label>
+                                <input type="number" class="form-control" id="order" name="order" min="1" value="1">
+                                <div class="form-text">Lower numbers start first (min: 1)</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="up" class="form-label">Startup Delay (seconds)</label>
+                                <input type="number" class="form-control" id="up" name="up" min="0" value="0">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="down" class="form-label">Shutdown Delay (seconds)</label>
+                                <input type="number" class="form-control" id="down" name="down" min="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="update_tags" name="update_tags">
+                                <label class="form-check-label fw-bold" for="update_tags">Tags</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2,tag3">
+                                <div class="form-text">Comma-separated list of tags</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning mt-4">
+                <i class="fas fa-exclamation-triangle"></i> Applying configuration changes to multiple resources at once is a powerful operation. Please verify your selections before proceeding.
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">Apply Configuration Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Show/hide resources based on type selection
+        $('#resource_type').change(function() {
+            const resourceType = $(this).val();
+            
+            if (resourceType === 'vm') {
+                $('#vm_selection').show();
+                $('#container_selection').hide();
+                $('.vm-only-option').show();
+                
+                // Uncheck container checkboxes
+                $('.ct-checkbox, .select-all-ct').prop('checked', false);
+            } else if (resourceType === 'container') {
+                $('#container_selection').show();
+                $('#vm_selection').hide();
+                $('.vm-only-option').hide();
+                
+                // Uncheck VM checkboxes
+                $('.vm-checkbox, .select-all-vm').prop('checked', false);
+            } else {
+                $('#vm_selection').hide();
+                $('#container_selection').hide();
+                $('.vm-only-option').hide();
+            }
+        });
+        
+        // Select all checkboxes functionality
+        $('.select-all-vm').change(function() {
+            $('.vm-checkbox').prop('checked', $(this).prop('checked'));
+        });
+        
+        $('.select-all-ct').change(function() {
+            $('.ct-checkbox').prop('checked', $(this).prop('checked'));
+        });
+        
+        // Form validation
+        $('form').submit(function(event) {
+            const resourceType = $('#resource_type').val();
+            
+            if (!resourceType) {
+                alert('Please select a resource type.');
+                event.preventDefault();
+                return false;
+            }
+            
+            // Check if any resource is selected
+            const selectedResources = resourceType === 'vm' 
+                ? $('.vm-checkbox:checked').length 
+                : $('.ct-checkbox:checked').length;
+                
+            if (selectedResources === 0) {
+                alert('Please select at least one resource to configure.');
+                event.preventDefault();
+                return false;
+            }
+            
+            // Check if any configuration option is selected
+            const anyConfigSelected = $('#update_cpu').prop('checked') || 
+                                    $('#update_memory').prop('checked') ||
+                                    $('#update_network').prop('checked') ||
+                                    $('#update_description').prop('checked') ||
+                                    $('#update_startup').prop('checked') ||
+                                    $('#update_tags').prop('checked');
+            
+            if (!anyConfigSelected) {
+                alert('Please select at least one configuration option to update.');
+                event.preventDefault();
+                return false;
+            }
+            
+            // Final confirmation
+            return confirm(`Are you sure you want to update configuration for ${selectedResources} resources? This operation cannot be undone.`);
+        });
+    });
+</script>
+{% endblock %}

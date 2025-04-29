@@ -26,6 +26,9 @@
             <a href="{{ url_for('batch_create', host_id=host_id, node=node) }}" class="btn btn-primary">
                 <i class="fas fa-layer-group"></i> Batch Create
             </a>
+            <a href="{{ url_for('batch_config', host_id=host_id, node=node) }}" class="btn btn-success">
+                <i class="fas fa-sliders-h"></i> Batch Config
+            </a>
             <a href="{{ url_for('template_management', host_id=host_id, node=node) }}" class="btn btn-secondary">
                 <i class="fas fa-box-open"></i> Templates
             </a>

@@ -4554,5 +4554,166 @@ def batch_create(host_id, node):
         flash(f"Failed to prepare batch creation: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
 
+@app.route('/host/<host_id>/<node>/batch_config', methods=['GET', 'POST'])
+def batch_config(host_id, node):
+    """
+    Apply the same configuration changes across multiple VMs or containers at once
+    """
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get all nodes for this host
+        nodes = connection.nodes.get()
+        
+        # Get all VMs across all nodes
+        vms = []
+        for node_obj in nodes:
+            node_name = node_obj['node']
+            try:
+                node_vms = connection.nodes(node_name).qemu.get()
+                for vm in node_vms:
+                    vm['node'] = node_name
+                vms.extend(node_vms)
+            except Exception as e:
+                print(f"Error getting VMs from node {node_name}: {str(e)}")
+        
+        # Get all containers across all nodes
+        containers = []
+        for node_obj in nodes:
+            node_name = node_obj['node']
+            try:
+                node_containers = connection.nodes(node_name).lxc.get()
+                for container in node_containers:
+                    container['node'] = node_name
+                containers.extend(node_containers)
+            except Exception as e:
+                print(f"Error getting containers from node {node_name}: {str(e)}")
+        
+        if request.method == 'POST':
+            resource_type = request.form.get('resource_type')
+            resource_ids = request.form.getlist('resource_ids')
+            
+            if not resource_type or not resource_ids:
+                flash("Resource type and at least one resource must be selected", 'danger')
+                return redirect(url_for('batch_config', host_id=host_id, node=node))
+            
+            # Common configuration parameters
+            config_params = {}
+            
+            # CPU configuration
+            if request.form.get('update_cpu') == 'on':
+                cores = request.form.get('cores')
+                if cores and cores.isdigit():
+                    config_params['cores'] = int(cores)
+            
+            # Memory configuration
+            if request.form.get('update_memory') == 'on':
+                memory = request.form.get('memory')
+                if memory and memory.isdigit():
+                    config_params['memory'] = int(memory)
+            
+            # Description update
+            if request.form.get('update_description') == 'on':
+                description = request.form.get('description', '')
+                config_params['description'] = description
+            
+            # Network configuration
+            if request.form.get('update_network') == 'on':
+                net_model = request.form.get('net_model')
+                net_bridge = request.form.get('net_bridge')
+                
+                if net_model and net_bridge:
+                    if resource_type == 'vm':
+                        config_params['net0'] = f"{net_model},bridge={net_bridge}"
+                    else:  # container
+                        config_params['net0'] = f"name=eth0,bridge={net_bridge}"
+            
+            # CPU type for VMs
+            if resource_type == 'vm' and request.form.get('update_cpu_type') == 'on':
+                cpu_type = request.form.get('cpu_type')
+                if cpu_type:
+                    config_params['cpu'] = cpu_type
+            
+            # Startup/shutdown configuration
+            if request.form.get('update_startup') == 'on':
+                startup_order = request.form.get('order')
+                startup_up = request.form.get('up')
+                startup_down = request.form.get('down')
+                
+                if startup_order and startup_order.isdigit():
+                    startup_config = []
+                    startup_config.append(f"order={startup_order}")
+                    
+                    if startup_up and startup_up.isdigit():
+                        startup_config.append(f"up={startup_up}")
+                    
+                    if startup_down and startup_down.isdigit():
+                        startup_config.append(f"down={startup_down}")
+                    
+                    config_params['startup'] = ",".join(startup_config)
+            
+            # Custom tags
+            if request.form.get('update_tags') == 'on':
+                tags = request.form.get('tags', '')
+                config_params['tags'] = tags
+            
+            # Track successful and failed updates
+            successful = 0
+            failed = 0
+            errors = []
+            
+            # Apply configuration changes to all selected resources
+            for resource_id in resource_ids:
+                parts = resource_id.split(':')
+                if len(parts) != 2:
+                    continue
+                
+                resource_node, vmid = parts
+                
+                try:
+                    if resource_type == 'vm':
+                        connection.nodes(resource_node).qemu(vmid).config.put(**config_params)
+                    else:  # container
+                        connection.nodes(resource_node).lxc(vmid).config.put(**config_params)
+                    
+                    successful += 1
+                except Exception as e:
+                    failed += 1
+                    error_message = f"Resource {vmid} on node {resource_node}: {str(e)}"
+                    errors.append(error_message)
+                    print(error_message)
+            
+            # Show summary message
+            if successful > 0:
+                if failed > 0:
+                    flash(f"Updated configuration for {successful} resources with {failed} failures. See details below.", 'warning')
+                    for error in errors:
+                        flash(error, 'danger')
+                else:
+                    flash(f"Successfully updated configuration for {successful} resources", 'success')
+            else:
+                flash(f"Failed to update any resources. See details below.", 'danger')
+                for error in errors:
+                    flash(error, 'danger')
+            
+            # Redirect to the node details page
+            return redirect(url_for('node_details', host_id=host_id, node=node))
+        
+        # GET request - render form
+        return render_template('batch_config.html',
+                              host_id=host_id,
+                              node=node,
+                              vms=vms,
+                              containers=containers,
+                              nodes=nodes)
+    
+    except Exception as e:
+        flash(f"Failed to prepare batch configuration: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
