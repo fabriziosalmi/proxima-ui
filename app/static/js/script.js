@@ -260,25 +260,21 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
         loadingElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
     }
     
-    // Add a container-wide loading indicator
-    const container = document.querySelector('.content-container');
-    if (container) {
-        container.classList.add('position-relative');
-        
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75';
-        loadingOverlay.style.zIndex = '1000';
-        loadingOverlay.innerHTML = `
-            <div class="text-center">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2">Processing ${action}...</p>
-            </div>
-        `;
-        
-        container.appendChild(loadingOverlay);
+    // Create full-screen loading overlay
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'loading-overlay';
+    
+    // Apply dark theme class if needed
+    if (document.body.getAttribute('data-bs-theme') === 'dark') {
+        loadingOverlay.classList.add('theme-dark');
     }
+    
+    loadingOverlay.innerHTML = `
+        <div class="loading-spinner"></div>
+        <p class="loading-message">Processing ${action}...</p>
+    `;
+    
+    document.body.appendChild(loadingOverlay);
     
     const formData = new FormData();
     formData.append('host_id', hostId);
@@ -319,13 +315,7 @@ function performAction(hostId, node, vmid, action, type = 'vm') {
     })
     .finally(() => {
         // Remove loading overlay
-        if (container) {
-            const overlay = container.querySelector('.position-absolute');
-            if (overlay) {
-                overlay.remove();
-            }
-            container.classList.remove('position-relative');
-        }
+        document.querySelectorAll('.loading-overlay').forEach(el => el.remove());
     });
 }
 
@@ -339,6 +329,22 @@ function performBulkAction(hostId, action, items, type = 'vm') {
     if (loadingElement) {
         loadingElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing bulk action...';
     }
+    
+    // Create full-screen loading overlay
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'loading-overlay';
+    
+    // Apply dark theme class if needed
+    if (document.body.getAttribute('data-bs-theme') === 'dark') {
+        loadingOverlay.classList.add('theme-dark');
+    }
+    
+    loadingOverlay.innerHTML = `
+        <div class="loading-spinner"></div>
+        <p class="loading-message">Processing bulk ${action}...</p>
+    `;
+    
+    document.body.appendChild(loadingOverlay);
     
     const formData = new FormData();
     formData.append('host_id', hostId);
@@ -382,6 +388,10 @@ function performBulkAction(hostId, action, items, type = 'vm') {
         if (loadingElement) {
             loadingElement.innerHTML = '';
         }
+    })
+    .finally(() => {
+        // Remove loading overlay
+        document.querySelectorAll('.loading-overlay').forEach(el => el.remove());
     });
 }
 
