@@ -34,6 +34,46 @@ const ResourceAlerts = (function() {
             }
         }
         
+        // Try to load server-side settings if available
+        fetch('/api/settings/resource_thresholds', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.settings) {
+                // Convert server settings format to our local format
+                const serverSettings = {
+                    cpu: {
+                        warning: parseInt(data.settings.cpu_threshold),
+                        critical: parseInt(data.settings.cpu_threshold) + 15, // Add 15% for critical
+                        enabled: data.settings.enable_resource_alerts
+                    },
+                    memory: {
+                        warning: parseInt(data.settings.memory_threshold),
+                        critical: parseInt(data.settings.memory_threshold) + 10, // Add 10% for critical
+                        enabled: data.settings.enable_resource_alerts
+                    },
+                    storage: {
+                        warning: parseInt(data.settings.storage_threshold),
+                        critical: parseInt(data.settings.storage_threshold) + 5, // Add 5% for critical
+                        enabled: data.settings.enable_resource_alerts
+                    }
+                };
+                
+                // Apply server settings (these take precedence)
+                thresholds = {...thresholds, ...serverSettings};
+                
+                // Save to localStorage as backup
+                saveThresholds();
+            }
+        })
+        .catch(error => {
+            console.warn('Unable to fetch server settings, using localStorage values', error);
+        });
+        
         // Check if notifications are enabled
         const alertsEnabled = localStorage.getItem('resource_alerts_enabled');
         if (alertsEnabled === null) {

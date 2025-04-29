@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, session, make_response
 from flask_bootstrap import Bootstrap
 import os
 import json
@@ -16,6 +16,8 @@ import random
 load_dotenv()
 
 app = Flask(__name__)
+# Set a secret key for session management
+app.secret_key = os.getenv('SECRET_KEY', 'proxima-ui-secret-key')
 bootstrap = Bootstrap(app)
 
 # Store Proxmox connections with thread-safe lock
@@ -4360,8 +4362,7 @@ def settings():
     """
     UI settings page for customizing the Proxmox UI application
     """
-    # Settings data could be loaded from a configuration file or database
-    # For now, we'll use hardcoded defaults
+    # Base settings data from cookies
     settings_data = {
         'theme': request.cookies.get('theme', 'light'),
         'page_size': request.cookies.get('page_size', '20'),
@@ -4369,6 +4370,22 @@ def settings():
         'date_format': request.cookies.get('date_format', 'YYYY-MM-DD HH:mm:ss'),
         'default_view': request.cookies.get('default_view', 'list')
     }
+    
+    # Load resource threshold settings from session if available
+    if 'resource_thresholds' in session:
+        resource_settings = session['resource_thresholds']
+        settings_data.update({
+            'enable_resource_alerts': resource_settings.get('enable_resource_alerts', True),
+            'cpu_threshold': resource_settings.get('cpu_threshold', 80),
+            'cpu_alert_level': resource_settings.get('cpu_alert_level', 'warning'),
+            'memory_threshold': resource_settings.get('memory_threshold', 85),
+            'memory_alert_level': resource_settings.get('memory_alert_level', 'warning'),
+            'storage_threshold': resource_settings.get('storage_threshold', 90),
+            'storage_alert_level': resource_settings.get('storage_alert_level', 'danger'),
+            'show_alerts_dashboard': resource_settings.get('show_alerts_dashboard', True),
+            'show_popup_notifications': resource_settings.get('show_popup_notifications', True),
+            'play_alert_sound': resource_settings.get('play_alert_sound', False)
+        })
     
     return render_template('settings.html', settings=settings_data)
 
@@ -4736,7 +4753,7 @@ def batch_config(host_id, node):
                 node_containers = connection.nodes(node_name).lxc.get()
                 for container in node_containers:
                     container['node'] = node_name
-                containers.extend(node_containers)
+                containers.extend(container)
             except Exception as e:
                 print(f"Error getting containers from node {node_name}: {str(e)}")
         
@@ -4861,6 +4878,50 @@ def batch_config(host_id, node):
     except Exception as e:
         flash(f"Failed to prepare batch configuration: {str(e)}", 'danger')
         return redirect(url_for('node_details', host_id=host_id, node=node))
+
+@app.route('/api/settings/resource_thresholds', methods=['GET', 'POST'])
+def save_resource_thresholds():
+    """
+    Save or retrieve resource usage threshold settings
+    """
+    if request.method == 'POST':
+        settings = {
+            'enable_resource_alerts': request.form.get('enable_resource_alerts') == 'true',
+            'cpu_threshold': request.form.get('cpu_threshold', 80),
+            'cpu_alert_level': request.form.get('cpu_alert_level', 'warning'),
+            'memory_threshold': request.form.get('memory_threshold', 85),
+            'memory_alert_level': request.form.get('memory_alert_level', 'warning'),
+            'storage_threshold': request.form.get('storage_threshold', 90),
+            'storage_alert_level': request.form.get('storage_alert_level', 'danger'),
+            'show_alerts_dashboard': request.form.get('show_alerts_dashboard') == 'true',
+            'show_popup_notifications': request.form.get('show_popup_notifications') == 'true',
+            'play_alert_sound': request.form.get('play_alert_sound') == 'true'
+        }
+        
+        # In a production environment, these settings would typically be saved to a database
+        # For now, we'll use Flask's session to persist between requests
+        session['resource_thresholds'] = settings
+        
+        return jsonify({'success': True})
+    else:
+        # Handle GET request - return current settings
+        if 'resource_thresholds' in session:
+            return jsonify({'success': True, 'settings': session['resource_thresholds']})
+        else:
+            # Return default settings if none are saved
+            default_settings = {
+                'enable_resource_alerts': True,
+                'cpu_threshold': 80,
+                'cpu_alert_level': 'warning',
+                'memory_threshold': 85,
+                'memory_alert_level': 'warning',
+                'storage_threshold': 90,
+                'storage_alert_level': 'danger',
+                'show_alerts_dashboard': True,
+                'show_popup_notifications': True,
+                'play_alert_sound': False
+            }
+            return jsonify({'success': True, 'settings': default_settings})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
