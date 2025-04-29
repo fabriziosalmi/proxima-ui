@@ -4309,5 +4309,250 @@ def logs():
                           per_page=per_page,
                           log_level=log_level)
 
+@app.route('/host/<host_id>/<node>/batch_create', methods=['GET', 'POST'])
+def batch_create(host_id, node):
+    """
+    Create multiple VMs or containers from a template in a single operation
+    """
+    if host_id not in proxmox_connections:
+        flash("Host not found", 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        connection = proxmox_connections[host_id]['connection']
+        
+        # Get available storage pools for this node
+        storages = connection.nodes(node).storage.get()
+        
+        # Get node CPU and memory info for resource allocation
+        node_status = connection.nodes(node).status.get()
+        
+        # Get next available VMID
+        try:
+            next_vmid = connection.cluster.nextid.get()
+        except Exception:
+            # Fallback if cluster API not available
+            vms = connection.nodes(node).qemu.get()
+            containers = connection.nodes(node).lxc.get()
+            existing_ids = [int(vm['vmid']) for vm in vms + containers]
+            next_vmid = max(existing_ids) + 1 if existing_ids else 100
+            
+        # Resources for template selection
+        # For VMs: VM templates
+        vm_templates = []
+        vm_storages = [storage for storage in storages if 'images' in storage.get('content', '').split(',')]
+        
+        # Get VMs with template flag set
+        try:
+            for vm_storage in vm_storages:
+                storage_id = vm_storage['storage']
+                try:
+                    storage_content = connection.nodes(node).storage(storage_id).content.get()
+                    for item in storage_content:
+                        if item.get('content') == 'images' and item.get('format') == 'qcow2' and item.get('volid', '').endswith('.qcow2'):
+                            # Check if this is a template by looking at the VM config
+                            try:
+                                vm_id = item.get('vmid')
+                                if vm_id:
+                                    vm_config = connection.nodes(node).qemu(vm_id).config.get()
+                                    if vm_config.get('template', 0) == 1:
+                                        template_info = {
+                                            'vmid': vm_id,
+                                            'name': vm_config.get('name', f'vm-{vm_id}'),
+                                            'description': vm_config.get('description', 'No description'),
+                                            'storage': storage_id
+                                        }
+                                        vm_templates.append(template_info)
+                            except Exception as e:
+                                print(f"Error checking VM template status: {str(e)}")
+                except Exception as e:
+                    print(f"Error getting content from storage {storage_id}: {str(e)}")
+        except Exception as e:
+            print(f"Error retrieving VM templates: {str(e)}")
+        
+        # For Containers: Container templates (vztmpl)
+        container_templates = []
+        template_storages = [storage for storage in storages if 'vztmpl' in storage.get('content', '').split(',')]
+        container_storages = [storage for storage in storages if 'rootdir' in storage.get('content', '').split(',')]
+        
+        # Get container templates
+        for storage in template_storages:
+            try:
+                content = connection.nodes(node).storage(storage['storage']).content.get()
+                template_list = [item for item in content if item.get('content') == 'vztmpl']
+                for tmpl in template_list:
+                    tmpl['storage'] = storage['storage']
+                    # Extract template name without path
+                    template_path = tmpl.get('volid', '').split(':')
+                    if len(template_path) > 1:
+                        tmpl['template_name'] = template_path[1].split('/')[-1]
+                    else:
+                        tmpl['template_name'] = 'Unknown'
+                container_templates.extend(template_list)
+            except Exception as e:
+                print(f"Error getting template list from {storage['storage']}: {str(e)}")
+        
+        # Get available nodes (for target selection)
+        nodes = connection.nodes.get()
+        
+        if request.method == 'POST':
+            # Process batch creation form
+            resource_type = request.form.get('resource_type')
+            count = int(request.form.get('count', 1))
+            name_prefix = request.form.get('name_prefix', '')
+            id_start = int(request.form.get('id_start', next_vmid))
+            target_node = request.form.get('target_node', node)
+            
+            # Common parameters
+            cores = request.form.get('cores', 1)
+            memory = request.form.get('memory', 512)
+            storage_name = request.form.get('storage')
+            disk_size = request.form.get('disk_size', 8)
+            
+            # Track successful and failed creations
+            successful = 0
+            failed = 0
+            error_messages = []
+            
+            if resource_type == 'vm':
+                # VM specific parameters
+                template_vmid = request.form.get('template_vmid')
+                full_clone = request.form.get('full_clone', 'on') == 'on'
+                
+                # Validate required parameters
+                if not template_vmid or not storage_name:
+                    flash("Template VM ID and storage are required", 'danger')
+                    return redirect(url_for('batch_create', host_id=host_id, node=node))
+                
+                # Create VMs in sequence
+                for i in range(count):
+                    current_vmid = id_start + i
+                    current_name = f"{name_prefix}{i+1}" if name_prefix else f"vm-{current_vmid}"
+                    
+                    try:
+                        # Clone parameters
+                        params = {
+                            'newid': current_vmid,
+                            'name': current_name,
+                            'full': 1 if full_clone else 0,
+                            'description': f"Created via batch operation on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        }
+                        
+                        # Add target storage if specified
+                        if storage_name:
+                            params['storage'] = storage_name
+                            
+                        # Add target node if different from source
+                        if target_node != node:
+                            params['target'] = target_node
+                        
+                        # Clone the VM from template
+                        connection.nodes(node).qemu(template_vmid).clone.post(**params)
+                        
+                        # Update resource settings if needed
+                        if cores != 1 or memory != 512:
+                            # Allow time for clone operation to start
+                            time.sleep(1)
+                            config_params = {}
+                            
+                            if cores != 1:
+                                config_params['cores'] = cores
+                            if memory != 512:
+                                config_params['memory'] = memory
+                                
+                            if config_params:
+                                connection.nodes(target_node).qemu(current_vmid).config.put(**config_params)
+                        
+                        successful += 1
+                    except Exception as e:
+                        failed += 1
+                        error_message = f"VM {current_vmid}: {str(e)}"
+                        error_messages.append(error_message)
+                        print(error_message)
+                        
+            elif resource_type == 'container':
+                # Container specific parameters
+                template = request.form.get('template')
+                password = request.form.get('password')
+                
+                # Validate required parameters
+                if not template or not storage_name or not password:
+                    flash("Container template, storage, and password are required", 'danger')
+                    return redirect(url_for('batch_create', host_id=host_id, node=node))
+                
+                # Network settings
+                net0 = request.form.get('net0', 'name=eth0,bridge=vmbr0,ip=dhcp')
+                
+                # Create containers in sequence
+                for i in range(count):
+                    current_vmid = id_start + i
+                    current_hostname = f"{name_prefix}{i+1}" if name_prefix else f"ct-{current_vmid}"
+                    
+                    try:
+                        # Build parameters for container creation
+                        params = {
+                            'vmid': current_vmid,
+                            'hostname': current_hostname,
+                            'cores': cores,
+                            'memory': memory,
+                            'net0': net0,
+                            'ostemplate': template,
+                            'password': password,
+                            'description': f"Created via batch operation on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        }
+                        
+                        # Add storage parameters
+                        if storage_name and disk_size:
+                            params['rootfs'] = f"{storage_name}:{disk_size}"
+                            
+                        # Create the container
+                        if target_node == node:
+                            connection.nodes(node).lxc.post(**params)
+                        else:
+                            # For different target node
+                            connection.nodes(target_node).lxc.post(**params)
+                            
+                        successful += 1
+                    except Exception as e:
+                        failed += 1
+                        error_message = f"Container {current_vmid}: {str(e)}"
+                        error_messages.append(error_message)
+                        print(error_message)
+            
+            # Show summary message
+            if successful > 0:
+                if failed > 0:
+                    flash(f"Created {successful} resources with {failed} failures. See details below.", 'warning')
+                    for error in error_messages:
+                        flash(error, 'danger')
+                else:
+                    flash(f"Successfully created {successful} resources", 'success')
+            else:
+                flash(f"Failed to create any resources. See details below.", 'danger')
+                for error in error_messages:
+                    flash(error, 'danger')
+                    
+            # Redirect to the node details page
+            if target_node == node:
+                return redirect(url_for('node_details', host_id=host_id, node=node))
+            else:
+                return redirect(url_for('node_details', host_id=host_id, node=target_node))
+            
+        # Render the batch creation form
+        return render_template('batch_create.html',
+                            host_id=host_id,
+                            node=node,
+                            vm_templates=vm_templates,
+                            container_templates=container_templates,
+                            vm_storages=vm_storages,
+                            container_storages=container_storages,
+                            nodes=nodes,
+                            node_status=node_status,
+                            next_vmid=next_vmid)
+                            
+    except Exception as e:
+        flash(f"Failed to prepare batch creation: {str(e)}", 'danger')
+        return redirect(url_for('node_details', host_id=host_id, node=node))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

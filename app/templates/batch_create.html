@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Batch Create{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item active">Batch Create</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-layer-group"></i> Batch Create Resources</h1>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> This tool allows you to create multiple VMs or containers from a template in a single operation.
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Batch Creation Settings</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('batch_create', host_id=host_id, node=node) }}" method="post">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label for="resource_type" class="form-label">Resource Type</label>
+                        <select class="form-select" id="resource_type" name="resource_type" required>
+                            <option value="">Select resource type</option>
+                            <option value="vm">Virtual Machines (QEMU/KVM)</option>
+                            <option value="container">Containers (LXC)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h4 class="mb-3">VM Templates</h4>
+                    <div id="vm_template_selection" class="mb-3" style="display: none;">
+                        <label for="template_vmid" class="form-label">Select VM Template</label>
+                        <select class="form-select" id="template_vmid" name="template_vmid">
+                            <option value="">Select VM template</option>
+                            {% for template in vm_templates %}
+                                <option value="{{ template.vmid }}">{{ template.name }} (ID: {{ template.vmid }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            {% if not vm_templates %}
+                            <span class="text-warning">No VM templates found. Create VM templates in the Template Management section.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <h4 class="mb-3">Container Templates</h4>
+                    <div id="container_template_selection" class="mb-3" style="display: none;">
+                        <label for="template" class="form-label">Select Container Template</label>
+                        <select class="form-select" id="template" name="template">
+                            <option value="">Select container template</option>
+                            {% for template in container_templates %}
+                                <option value="{{ template.volid }}">{{ template.template_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            {% if not container_templates %}
+                            <span class="text-warning">No container templates found. Download templates in the Template Management section.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div id="container_password_field" class="mb-3" style="display: none;">
+                        <label for="password" class="form-label">Root Password</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        <div class="form-text">Root password for all containers (required for container creation)</div>
+                    </div>
+                    
+                    <h4 class="mb-3 mt-4">Batch Settings</h4>
+                    
+                    <div class="mb-3">
+                        <label for="count" class="form-label">Number of Resources to Create</label>
+                        <input type="number" class="form-control" id="count" name="count" min="1" max="50" value="1" required>
+                        <div class="form-text">Maximum: 50 resources per batch</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name_prefix" class="form-label">Name Prefix</label>
+                        <input type="text" class="form-control" id="name_prefix" name="name_prefix" placeholder="e.g., web-server-">
+                        <div class="form-text">A number will be appended to this prefix (e.g., web-server-1, web-server-2)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_start" class="form-label">Starting ID</label>
+                        <input type="number" class="form-control" id="id_start" name="id_start" min="100" value="{{ next_vmid }}" required>
+                        <div class="form-text">ID numbers will be assigned consecutively starting from this value</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h4 class="mb-3">Common Resources</h4>
+                    
+                    <div class="mb-3">
+                        <label for="cores" class="form-label">CPU Cores</label>
+                        <input type="number" class="form-control" id="cores" name="cores" min="1" value="1" required>
+                        <div class="form-text">
+                            Available: {{ node_status.cpuinfo.cpus }} cores total
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="memory" class="form-label">Memory (MB)</label>
+                        <input type="number" class="form-control" id="memory" name="memory" min="128" value="512" step="128" required>
+                        <div class="form-text">
+                            Available: {{ (node_status.memory.free / (1024*1024))|round(0) }} MB free of {{ (node_status.memory.total / (1024*1024))|round(0) }} MB total
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="storage" class="form-label">Storage Pool</label>
+                        <select class="form-select" id="storage" name="storage" required>
+                            <option value="">Select storage pool</option>
+                            <optgroup label="VM Storage" id="vm_storage_options" style="display: none;">
+                                {% for storage in vm_storages %}
+                                    <option value="{{ storage.storage }}" data-type="vm">{{ storage.storage }} ({{ storage.type }})</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="Container Storage" id="container_storage_options" style="display: none;">
+                                {% for storage in container_storages %}
+                                    <option value="{{ storage.storage }}" data-type="container">{{ storage.storage }} ({{ storage.type }})</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="disk_size" class="form-label">Disk Size (GB)</label>
+                        <input type="number" class="form-control" id="disk_size" name="disk_size" min="1" value="8" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="target_node" class="form-label">Target Node</label>
+                        <select class="form-select" id="target_node" name="target_node" required>
+                            <option value="{{ node }}" selected>{{ node }} (This Node)</option>
+                            {% for node_obj in nodes %}
+                                {% if node_obj.node != node %}
+                                    <option value="{{ node_obj.node }}">{{ node_obj.node }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">The node where the resources will be created</div>
+                    </div>
+                    
+                    <div id="vm_options" style="display: none;">
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="full_clone" name="full_clone" checked>
+                            <label class="form-check-label" for="full_clone">Full Clone</label>
+                            <div class="form-text">If unchecked, creates a linked clone (requires template to have snapshots)</div>
+                        </div>
+                    </div>
+                    
+                    <div id="container_options" style="display: none;">
+                        <div class="mb-3">
+                            <label for="net0" class="form-label">Network Interface</label>
+                            <input type="text" class="form-control" id="net0" name="net0" value="name=eth0,bridge=vmbr0,ip=dhcp">
+                            <div class="form-text">Format: name=interface_name,bridge=bridge_name,ip=ip_address</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning mt-4">
+                <i class="fas fa-exclamation-triangle"></i> Creating multiple resources at once can cause significant load on the system. Ensure you have adequate resources available.
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Resources</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Toggle resource type-specific options
+        $('#resource_type').change(function() {
+            const resourceType = $(this).val();
+            
+            // Hide all template selection options first
+            $('#vm_template_selection, #container_template_selection, #vm_options, #container_options, #container_password_field').hide();
+            $('#vm_storage_options, #container_storage_options').hide();
+            
+            // Show the appropriate ones based on selection
+            if (resourceType === 'vm') {
+                $('#vm_template_selection, #vm_options').show();
+                $('#vm_storage_options').show();
+                
+                // Reset container-specific fields
+                $('#template').val('');
+                $('#password').val('');
+                
+                // Filter storage options
+                filterStorageOptions('vm');
+            } else if (resourceType === 'container') {
+                $('#container_template_selection, #container_options, #container_password_field').show();
+                $('#container_storage_options').show();
+                
+                // Reset VM-specific fields
+                $('#template_vmid').val('');
+                
+                // Filter storage options
+                filterStorageOptions('container');
+            }
+        });
+        
+        // Function to filter storage options based on resource type
+        function filterStorageOptions(type) {
+            $('#storage').val(''); // Reset selection
+            
+            // Show only relevant storage options
+            $(`#${type}_storage_options`).show();
+            $(`#storage option`).each(function() {
+                if ($(this).parent('optgroup').attr('id') === `${type}_storage_options` || !$(this).parent('optgroup').length) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+        
+        // Form validation
+        $('form').submit(function(event) {
+            const resourceType = $('#resource_type').val();
+            
+            if (!resourceType) {
+                alert('Please select a resource type.');
+                event.preventDefault();
+                return false;
+            }
+            
+            if (resourceType === 'vm') {
+                const templateId = $('#template_vmid').val();
+                if (!templateId) {
+                    alert('Please select a VM template.');
+                    event.preventDefault();
+                    return false;
+                }
+            } else if (resourceType === 'container') {
+                const template = $('#template').val();
+                const password = $('#password').val();
+                
+                if (!template) {
+                    alert('Please select a container template.');
+                    event.preventDefault();
+                    return false;
+                }
+                
+                if (!password) {
+                    alert('Root password is required for container creation.');
+                    event.preventDefault();
+                    return false;
+                }
+            }
+            
+            const count = parseInt($('#count').val());
+            if (count > 50) {
+                alert('For system stability, you cannot create more than 50 resources at once.');
+                event.preventDefault();
+                return false;
+            }
+            
+            // Final confirmation
+            return confirm(`Are you sure you want to create ${count} ${resourceType === 'vm' ? 'virtual machines' : 'containers'}? This operation cannot be undone.`);
+        });
+    });
+</script>
+{% endblock %}
