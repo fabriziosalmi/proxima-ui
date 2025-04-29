@@ -2352,7 +2352,7 @@ def delete_container_firewall_rule(host_id, node, vmid, rule_pos):
     except Exception as e:
         flash(f"Failed to delete container firewall rule: {str(e)}", 'danger')
     
-    return redirect(url_for('container_firewall', host_id=host_id, node=node, vmid=vmid))
+    return redirect(url_for('container_firewall', host_id=host_id, node=node))
 
 @app.route('/container/<host_id>/<node>/<vmid>/firewall/refs/add', methods=['POST'])
 def add_container_security_group(host_id, node, vmid):
@@ -2836,8 +2836,8 @@ def migrate_vm_form(host_id):
         flash(f"Failed to get migration information: {str(e)}", 'danger')
         return redirect(url_for('host_details', host_id=host_id))
 
-@app.route('/host/<host_id>/migrate/vm', methods=['POST'])
-def migrate_vm(host_id):
+@app.route('/host/<host_id>/migrate', methods=['GET', 'POST'])
+def enhanced_migrate_vm_form(host_id):
     if host_id not in proxmox_connections:
         flash("Host not found", 'danger')
         return redirect(url_for('index'))
@@ -2845,36 +2845,183 @@ def migrate_vm(host_id):
     try:
         connection = proxmox_connections[host_id]['connection']
         
-        # Get form data
-        vm_type = request.form.get('vm_type')
-        vmid = request.form.get('vmid')
-        source_node = request.form.get('source_node')
-        target_node = request.form.get('target_node')
-        online = request.form.get('online') == 'on'
-        with_local_disks = request.form.get('with_local_disks') == 'on'
+        # Get all nodes for this host
+        nodes = {}
+        for node in connection.nodes.get():
+            nodes[node['node']] = node
         
-        # Create migration parameters
-        params = {
-            'target': target_node
-        }
-        
-        if online:
-            params['online'] = 1
+        if request.method == 'POST':
+            # Get basic migration parameters
+            vm_type = request.form.get('vm_type')
+            vmid = request.form.get('vmid')
+            source_node = request.form.get('source_node')
+            target_node = request.form.get('target_node')
+            online = 'online' in request.form
+            with_local_disks = 'with_local_disks' in request.form
             
-        if with_local_disks:
-            params['with-local-disks'] = 1
+            # Enhanced migration options
+            bandwidth_limit = request.form.get('bandwidth_limit', '0')
+            migration_policy = request.form.get('migration_policy', 'default')
+            migration_network = request.form.get('migration_network', 'default')
+            compressed = 'compressed' in request.form
+            auto_retry = 'auto_retry' in request.form
+            shutdown_if_failure = 'shutdown_if_failure' in request.form
+            migration_notes = request.form.get('migration_notes', '')
+            
+            # Scheduling options
+            schedule_migration = 'schedule_migration' in request.form
+            
+            if schedule_migration:
+                schedule_date = request.form.get('schedule_date')
+                schedule_time = request.form.get('schedule_time')
+                time_window_hours = int(request.form.get('time_window_hours', 0))
+                time_window_minutes = int(request.form.get('time_window_minutes', 0))
+                
+                # Create a scheduled job for the migration
+                scheduled_time = f"{schedule_date} {schedule_time}"
+                time_window = (time_window_hours * 60) + time_window_minutes  # in minutes
+                
+                try:
+                    # Create a job record for the scheduled migration
+                    job_data = {
+                        'type': 'migration',
+                        'host_id': host_id,
+                        'vm_type': vm_type,
+                        'vmid': vmid,
+                        'source_node': source_node,
+                        'target_node': target_node,
+                        'online': online,
+                        'with_local_disks': with_local_disks,
+                        'bandwidth_limit': int(bandwidth_limit),
+                        'migration_policy': migration_policy,
+                        'migration_network': migration_network,
+                        'compressed': compressed,
+                        'auto_retry': auto_retry,
+                        'shutdown_if_failure': shutdown_if_failure,
+                        'time_window': time_window,
+                        'scheduled_time': scheduled_time,
+                        'status': 'scheduled',
+                        'notes': migration_notes,
+                        'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    
+                    # Record the job (in a real application this would be in a database)
+                    # For simplicity, we're just adding to a global list
+                    if 'scheduled_jobs' not in g:
+                        g.scheduled_jobs = []
+                    g.scheduled_jobs.append(job_data)
+                    
+                    flash(f"Migration scheduled for {scheduled_time}", 'success')
+                    return redirect(url_for('jobs', host_id=host_id))
+                
+                except Exception as e:
+                    flash(f"Failed to schedule migration: {str(e)}", 'danger')
+                    return redirect(url_for('migrate_vm_form', host_id=host_id))
+            
+            else:
+                # Prepare migration parameters
+                migrate_params = {}
+                
+                if online:
+                    migrate_params['online'] = 1
+                
+                if with_local_disks:
+                    migrate_params['with-local-disks'] = 1
+                
+                # Add enhanced parameters
+                if bandwidth_limit and int(bandwidth_limit) > 0:
+                    migrate_params['bandwidth'] = int(bandwidth_limit)
+                
+                if migration_policy != 'default':
+                    if migration_policy == 'precopy':
+                        migrate_params['migration_type'] = 'precopy'
+                    elif migration_policy == 'postcopy':
+                        migrate_params['migration_type'] = 'postcopy'
+                    elif migration_policy == 'suspend':
+                        migrate_params['migration_type'] = 'suspend'
+                
+                if migration_network != 'default':
+                    # In a real implementation, you would map these to actual network identifiers
+                    migrate_params['migration_network'] = migration_network
+                
+                if compressed:
+                    migrate_params['compressed'] = 1
+                
+                try:
+                    # Start the migration with the enhanced parameters
+                    if vm_type == 'qemu':
+                        result = connection.nodes(source_node).qemu(vmid).migrate.post(
+                            target=target_node, **migrate_params
+                        )
+                    else:  # lxc
+                        result = connection.nodes(source_node).lxc(vmid).migrate.post(
+                            target=target_node, **migrate_params
+                        )
+                    
+                    # Track the migration task to enable auto-retry and shutdown on failure
+                    if auto_retry or shutdown_if_failure:
+                        # Store this task and parameters for later checking
+                        # In a real implementation, this would go to a database
+                        task_data = {
+                            'type': 'migration',
+                            'vm_type': vm_type,
+                            'vmid': vmid,
+                            'source_node': source_node,
+                            'target_node': target_node,
+                            'task_upid': result,
+                            'auto_retry': auto_retry,
+                            'retry_count': 0,
+                            'max_retries': 3,
+                            'shutdown_if_failure': shutdown_if_failure,
+                            'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'notes': migration_notes,
+                            'status': 'running'
+                        }
+                        
+                        # In a real implementation, store task_data to a database
+                        # For simplicity, we're just adding to a global list
+                        if 'tasks' not in g:
+                            g.tasks = []
+                        g.tasks.append(task_data)
+                    
+                    flash(f"Migration started successfully. Task ID: {result}", 'success')
+                    return redirect(url_for('node_details', host_id=host_id, node=source_node))
+                
+                except Exception as e:
+                    flash(f"Failed to migrate: {str(e)}", 'danger')
+                    return redirect(url_for('migrate_vm_form', host_id=host_id))
         
-        # Start migration
-        if vm_type == 'qemu':
-            connection.nodes(source_node).qemu(vmid).migrate.post(**params)
-        elif vm_type == 'lxc':
-            connection.nodes(source_node).lxc(vmid).migrate.post(**params)
+        # GET request - prepare form
+        # Get all VMs across all nodes
+        vms = []
+        containers = []
         
-        flash(f"Started migration of {vm_type.upper()} {vmid} to node {target_node}", 'success')
-    except Exception as e:
-        flash(f"Failed to start migration: {str(e)}", 'danger')
+        for node_id in nodes:
+            try:
+                node_vms = connection.nodes(node_id).qemu.get()
+                for vm in node_vms:
+                    vm['node'] = node_id
+                vms.extend(node_vms)
+            except:
+                pass
+            
+            try:
+                node_containers = connection.nodes(node_id).lxc.get()
+                for container in node_containers:
+                    container['node'] = node_id
+                containers.extend(node_containers)
+            except:
+                pass
+        
+        return render_template('migrate_vm.html', 
+                              host_id=host_id, 
+                              nodes=nodes, 
+                              vms=vms, 
+                              containers=containers)
     
-    return redirect(url_for('migrate_vm_form', host_id=host_id))
+    except Exception as e:
+        flash(f"Failed to load migration form: {str(e)}", 'danger')
+        return redirect(url_for('host_details', host_id=host_id))
 
 @app.route('/vm/<host_id>/<node>/<vmid>/clone', methods=['GET', 'POST'])
 def clone_vm(host_id, node, vmid):

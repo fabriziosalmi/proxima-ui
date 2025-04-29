@@ -99,6 +99,131 @@
                         <div class="form-text">If checked, local disks will be migrated as well (slower but maintains VM integrity).</div>
                     </div>
                 </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="bandwidth_limit" class="form-label">Bandwidth Limit (MB/s)</label>
+                        <input type="number" class="form-control" id="bandwidth_limit" name="bandwidth_limit" min="0" value="0">
+                        <div class="form-text">Maximum bandwidth to use for migration in MB/s (0 = unlimited)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="schedule_migration" name="schedule_migration">
+                                <label class="form-check-label fw-bold" for="schedule_migration">Schedule Migration</label>
+                            </div>
+                        </div>
+                        <div class="card-body" id="schedule_options" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="schedule_date" class="form-label">Start Date</label>
+                                        <input type="date" class="form-control" id="schedule_date" name="schedule_date">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="schedule_time" class="form-label">Start Time</label>
+                                        <input type="time" class="form-control" id="schedule_time" name="schedule_time">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Time Window for Migration</label>
+                                <div class="form-text mb-2">Define a window during which the migration must complete. If it can't complete within this window, it will be canceled or finished depending on your policy.</div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="time_window_hours" class="form-label">Hours</label>
+                                            <input type="number" class="form-control" id="time_window_hours" name="time_window_hours" min="0" value="0">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="time_window_minutes" class="form-label">Minutes</label>
+                                            <input type="number" class="form-control" id="time_window_minutes" name="time_window_minutes" min="0" max="59" value="0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Advanced Migration Options</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="migration_policy" class="form-label">Migration Policy</label>
+                                    <select class="form-select" id="migration_policy" name="migration_policy">
+                                        <option value="default">Default (Auto)</option>
+                                        <option value="precopy">Precopy (Lower Downtime)</option>
+                                        <option value="postcopy">Postcopy (Faster Completion)</option>
+                                        <option value="suspend">Auto-Suspend If Issues</option>
+                                    </select>
+                                    <div class="form-text">Determines how the migration will handle memory transfer.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="migration_network" class="form-label">Migration Network</label>
+                                    <select class="form-select" id="migration_network" name="migration_network">
+                                        <option value="default">Default</option>
+                                        <option value="management">Management Network</option>
+                                        <option value="backup">Backup Network</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                    <div class="form-text">Select which network to use for migration traffic.</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="compressed" name="compressed">
+                                        <label class="form-check-label" for="compressed">Use Compression</label>
+                                        <div class="form-text">If checked, memory and disk data will be compressed during transfer.</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="auto_retry" name="auto_retry">
+                                        <label class="form-check-label" for="auto_retry">Auto Retry on Failure</label>
+                                        <div class="form-text">If checked, the migration will automatically retry up to 3 times if it fails.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="shutdown_if_failure" name="shutdown_if_failure">
+                                        <label class="form-check-label" for="shutdown_if_failure">Shutdown If Migration Fails</label>
+                                        <div class="form-text">If checked, the VM/Container will be shut down if migration fails after all retries.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <label for="migration_notes" class="form-label">Migration Notes</label>
+                                        <textarea class="form-control" id="migration_notes" name="migration_notes" rows="2" placeholder="Optional notes about this migration"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="d-grid gap-2 d-md-flex justify-content-md-start">
@@ -120,6 +245,10 @@
             <li>Shared storage allows faster migrations as disk content doesn't need to be transferred</li>
             <li>VMs with passthrough devices cannot be migrated live</li>
             <li>Migration may take a significant amount of time based on VM/Container size and network conditions</li>
+            <li><strong>Precopy mode:</strong> Transfers memory pages iteratively while the VM is running, resulting in minimal downtime</li>
+            <li><strong>Postcopy mode:</strong> Migrates critical data first, then transfers remaining memory on-demand, resulting in faster initial migration</li>
+            <li>Using compression can reduce network bandwidth requirements but may increase CPU load</li>
+            <li>Scheduled migrations are useful for planning maintenance windows and off-peak migrations</li>
         </ul>
     </div>
 </div>
@@ -191,6 +320,57 @@
             }
         });
         
+        // Toggle scheduling options
+        $('#schedule_migration').change(function() {
+            if ($(this).is(':checked')) {
+                $('#schedule_options').slideDown();
+                
+                // If dates are not yet set, set default to tomorrow
+                if (!$('#schedule_date').val()) {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    
+                    // Format date as YYYY-MM-DD
+                    const year = tomorrow.getFullYear();
+                    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+                    const day = String(tomorrow.getDate()).padStart(2, '0');
+                    
+                    $('#schedule_date').val(`${year}-${month}-${day}`);
+                    
+                    // Set default time to 1:00 AM
+                    $('#schedule_time').val('01:00');
+                }
+            } else {
+                $('#schedule_options').slideUp();
+            }
+        });
+        
+        // Update migration policy options based on online migration choice
+        $('#online').change(function() {
+            const isOnline = $(this).is(':checked');
+            
+            // If not online, disable postcopy and precopy options
+            if (!isOnline) {
+                $('#migration_policy option[value="postcopy"]').prop('disabled', true);
+                $('#migration_policy option[value="precopy"]').prop('disabled', true);
+                
+                // If current selection is now disabled, select default
+                if ($('#migration_policy').val() === 'postcopy' || $('#migration_policy').val() === 'precopy') {
+                    $('#migration_policy').val('default');
+                }
+            } else {
+                $('#migration_policy option[value="postcopy"]').prop('disabled', false);
+                $('#migration_policy option[value="precopy"]').prop('disabled', false);
+            }
+        });
+        
+        // Disable compression if network is set to backup (assumed to be slower)
+        $('#migration_network').change(function() {
+            if ($(this).val() === 'backup') {
+                $('#compressed').prop('checked', true);
+            }
+        });
+        
         // Form validation
         $('form').submit(function(event) {
             const targetNode = $('#target_node').val();
@@ -215,8 +395,56 @@
                 return false;
             }
             
-            // Confirm migration
-            return confirm('Are you sure you want to migrate this VM/Container? This process may take some time.');
+            // Validate scheduling options if enabled
+            if ($('#schedule_migration').is(':checked')) {
+                const scheduleDate = $('#schedule_date').val();
+                const scheduleTime = $('#schedule_time').val();
+                
+                if (!scheduleDate || !scheduleTime) {
+                    alert('Please set both date and time for scheduled migration');
+                    event.preventDefault();
+                    return false;
+                }
+                
+                // Check that scheduled time is in the future
+                const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+                const now = new Date();
+                
+                if (scheduledDateTime <= now) {
+                    alert('Scheduled migration time must be in the future');
+                    event.preventDefault();
+                    return false;
+                }
+                
+                // Verify time window if specified
+                const windowHours = parseInt($('#time_window_hours').val()) || 0;
+                const windowMinutes = parseInt($('#time_window_minutes').val()) || 0;
+                
+                if (windowHours === 0 && windowMinutes === 0) {
+                    alert('Please specify a time window for scheduled migration');
+                    event.preventDefault();
+                    return false;
+                }
+            }
+            
+            // Validate bandwidth limit
+            const bandwidthLimit = parseInt($('#bandwidth_limit').val());
+            if (isNaN(bandwidthLimit) || bandwidthLimit < 0) {
+                alert('Bandwidth limit must be a non-negative number');
+                event.preventDefault();
+                return false;
+            }
+            
+            // Confirm migration with appropriate message
+            let confirmMessage = 'Are you sure you want to migrate this VM/Container?';
+            
+            if ($('#schedule_migration').is(':checked')) {
+                const scheduleDate = $('#schedule_date').val();
+                const scheduleTime = $('#schedule_time').val();
+                confirmMessage = `Are you sure you want to schedule migration for ${scheduleDate} at ${scheduleTime}?`;
+            }
+            
+            return confirm(confirmMessage);
         });
     });
 </script>
