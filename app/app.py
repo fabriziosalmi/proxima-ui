@@ -3991,18 +3991,38 @@ def jobs(host_id):
         # Get nodes for the node selection dropdowns
         nodes = connection.nodes.get()
         
-        # Get all scheduled jobs from the cluster
+        # Determine if this is a standalone or clustered environment
+        is_clustered = True
         try:
-            # Try to get any existing cron jobs
+            # Try to get cluster status
+            cluster_status = connection.cluster.status.get()
+            # If it returns more than one node, it's a cluster
+            is_clustered = len(cluster_status) > 1
+        except Exception:
+            # If we can't access cluster API, assume it's standalone
+            is_clustered = False
+        
+        # Get all scheduled jobs from the cluster or node
+        try:
+            # Try to get any existing cron jobs from cluster API
             jobs_list = connection.cluster.jobs.get()
         except Exception:
-            # If the API endpoint doesn't exist or returns an error, provide empty list
+            # If cluster API endpoint doesn't exist, try getting from individual nodes
             jobs_list = []
+            for node in nodes:
+                try:
+                    node_jobs = connection.nodes(node['node']).jobs.get()
+                    for job in node_jobs:
+                        job['node'] = node['node']  # Add node info to standalone jobs
+                    jobs_list.extend(node_jobs)
+                except Exception:
+                    pass
         
         return render_template('jobs.html',
                             host_id=host_id,
                             jobs=jobs_list,
-                            nodes=nodes)
+                            nodes=nodes,
+                            is_clustered=is_clustered)
     except Exception as e:
         flash(f"Failed to get jobs list: {str(e)}", 'danger')
         return redirect(url_for('host_details', host_id=host_id))

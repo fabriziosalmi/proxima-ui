@@ -49,7 +49,17 @@
                         <tr>
                             <td>{{ job.id }}</td>
                             <td>{{ job.type }}</td>
-                            <td>{% if job.node %}{{ job.node }}{% else %}<span class="badge bg-info">Cluster</span>{% endif %}</td>
+                            <td>
+                                {% if job.node %}
+                                    {{ job.node }}
+                                {% else %}
+                                    {% if is_clustered %}
+                                        <span class="badge bg-info">Cluster</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Standalone</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
                             <td>{{ job.schedule }}</td>
                             <td>{{ job.next_run|timestamp_to_date if job.next_run else 'N/A' }}</td>
                             <td>{{ job.last_run|timestamp_to_date if job.last_run else 'N/A' }}</td>
@@ -167,12 +177,22 @@
                             <div class="mb-3">
                                 <label for="backup_all_node" class="form-label">Node</label>
                                 <select class="form-select" id="backup_all_node" name="node">
+                                    {% if is_clustered %}
                                     <option value="">All Nodes (Cluster-wide)</option>
+                                    {% else %}
+                                    <option value="">Select a node</option>
+                                    {% endif %}
                                     {% for node in nodes %}
                                     <option value="{{ node.node }}">{{ node.node }}</option>
                                     {% endfor %}
                                 </select>
-                                <div class="form-text">Select a specific node or leave blank for cluster-wide job</div>
+                                <div class="form-text">
+                                    {% if is_clustered %}
+                                    Select a specific node or leave blank for cluster-wide job
+                                    {% else %}
+                                    Select a node for the backup job
+                                    {% endif %}
+                                </div>
                             </div>
                             
                             <div class="mb-3">
