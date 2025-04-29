@@ -78,7 +78,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-success text-white h-100 clickable-card" data-tab-target="vms-tab">
+        <div class="card bg-success text-white h-100 clickable-card" id="vm-card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -94,7 +94,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-info text-white h-100 clickable-card" data-tab-target="containers-tab">
+        <div class="card bg-info text-white h-100 clickable-card" id="container-card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -541,17 +541,6 @@
             }
         });
 
-        // Make resource cards clickable to focus on respective tabs
-        $('.clickable-card').click(function() {
-            const tabId = $(this).data('tab-target');
-            // Properly activate Bootstrap tab
-            const tabElement = document.getElementById(tabId);
-            if (tabElement) {
-                const tab = new bootstrap.Tab(tabElement);
-                tab.show();
-            }
-        });
-
         // Add hover effect for clickable cards
         $('.clickable-card').hover(
             function() {
@@ -562,6 +551,15 @@
                 $(this).css('box-shadow', '');
             }
         );
+
+        // Handle card clicks to switch tabs
+        $('#vm-card').click(function() {
+            $('#vms-tab').tab('show');
+        });
+
+        $('#container-card').click(function() {
+            $('#containers-tab').tab('show');
+        });
 
         // Bulk selection management for VMs
         $('.vm-checkbox').change(function() {
@@ -800,29 +798,32 @@
         {% if vms is defined %}
         {% for vm in vms %}
         {% if vm.status == 'running' %}
-        const vmData = {
-            vmid: '{{ vm.vmid }}',
-            name: '{{ vm.name }}',
-            node: '{{ node }}',
-            status: '{{ vm.status }}',
-            cpu: {{ vm.cpu|default(0) }},
-            mem: {{ vm.mem|default(0) }},
-            maxmem: {{ vm.maxmem|default(1) }}
-            {% if vm.get('disks') %}
-            ,
-            disks: {
-                {% for key, disk in vm.get('disks', {}).items() %}
-                {% if disk.get('usage') is defined and disk.get('total') is defined %}
-                '{{ key }}': {
-                    usage: {{ disk.get('usage') }},
-                    total: {{ disk.get('total') }}
-                }{% if not loop.last %},{% endif %}
+        {
+            // Using a block scope to ensure variable isolation
+            const vmResourceData_{{ vm.vmid }} = {
+                vmid: '{{ vm.vmid }}',
+                name: '{{ vm.name }}',
+                node: '{{ node }}',
+                status: '{{ vm.status }}',
+                cpu: {{ vm.cpu|default(0) }},
+                mem: {{ vm.mem|default(0) }},
+                maxmem: {{ vm.maxmem|default(1) }}
+                {% if vm.get('disks') %}
+                ,
+                disks: {
+                    {% for key, disk in vm.get('disks', {}).items() %}
+                    {% if disk.get('usage') is defined and disk.get('total') is defined %}
+                    '{{ key }}': {
+                        usage: {{ disk.get('usage') }},
+                        total: {{ disk.get('total') }}
+                    }{% if not loop.last %},{% endif %}
+                    {% endif %}
+                    {% endfor %}
+                }
                 {% endif %}
-                {% endfor %}
-            }
-            {% endif %}
-        };
-        ResourceAlerts.checkVmResources(vmData);
+            };
+            ResourceAlerts.checkVmResources(vmResourceData_{{ vm.vmid }});
+        }
         {% endif %}
         {% endfor %}
         {% endif %}
@@ -831,23 +832,26 @@
         {% if containers is defined %}
         {% for container in containers %}
         {% if container.status == 'running' %}
-        const containerData = {
-            vmid: '{{ container.vmid }}',
-            name: '{{ container.name }}',
-            node: '{{ node }}',
-            status: '{{ container.status }}',
-            cpu: {{ container.cpu|default(0) }},
-            mem: {{ container.mem|default(0) }},
-            maxmem: {{ container.maxmem|default(1) }}
-            {% if container.get('rootfs') %}
-            ,
-            rootfs: {
-                usage: {{ container.rootfs.get('usage')|default(0) }},
-                total: {{ container.rootfs.get('total')|default(1) }}
-            }
-            {% endif %}
-        };
-        ResourceAlerts.checkContainerResources(containerData);
+        {
+            // Using a block scope to ensure variable isolation
+            const containerResourceData_{{ container.vmid }} = {
+                vmid: '{{ container.vmid }}',
+                name: '{{ container.name }}',
+                node: '{{ node }}',
+                status: '{{ container.status }}',
+                cpu: {{ container.cpu|default(0) }},
+                mem: {{ container.mem|default(0) }},
+                maxmem: {{ container.maxmem|default(1) }}
+                {% if container.get('rootfs') %}
+                ,
+                rootfs: {
+                    usage: {{ container.rootfs.get('usage')|default(0) }},
+                    total: {{ container.rootfs.get('total')|default(1) }}
+                }
+                {% endif %}
+            };
+            ResourceAlerts.checkContainerResources(containerResourceData_{{ container.vmid }});
+        }
         {% endif %}
         {% endfor %}
         {% endif %}
