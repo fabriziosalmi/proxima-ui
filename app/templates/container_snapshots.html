@@ -17,6 +17,11 @@
     <div class="col">
         <h1><i class="fas fa-camera"></i> Snapshots: {{ container_name }}</h1>
     </div>
+    <div class="col-auto">
+        <a href="{{ url_for('container_snapshot_schedules', host_id=host_id, node=node, vmid=vmid) }}" class="btn btn-primary">
+            <i class="fas fa-calendar"></i> Manage Snapshot Schedules
+        </a>
+    </div>
 </div>
 
 <div class="card mb-4">

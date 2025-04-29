@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Container Snapshot Schedules{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=vmid) }}">Container {{ vmid }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('container_snapshots', host_id=host_id, node=node, vmid=vmid) }}">Snapshots</a></li>
+        <li class="breadcrumb-item active">Schedules</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-calendar"></i> Snapshot Schedules: {{ container_name }}</h1>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Create Snapshot Schedule</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('create_container_snapshot_schedule', host_id=host_id, node=node, vmid=vmid) }}" method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="name_prefix" class="form-label">Snapshot Name Prefix</label>
+                        <input type="text" class="form-control" id="name_prefix" name="name_prefix" value="scheduled-" 
+                            placeholder="e.g., daily-">
+                        <div class="form-text">A timestamp will be added to this prefix automatically</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="description" name="description" 
+                            value="Automated snapshot" placeholder="e.g., Daily automated snapshot">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="schedule_type" class="form-label">Frequency</label>
+                        <select class="form-select" id="schedule_type" name="schedule_type">
+                            <option value="hourly">Hourly</option>
+                            <option value="daily" selected>Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="schedule_value" class="form-label">Interval</label>
+                        <input type="number" class="form-control" id="schedule_value" name="schedule_value" 
+                            value="1" min="1" max="30">
+                        <div class="form-text">How many hours/days/weeks/months between snapshots</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="retention" class="form-label">Retention Policy</label>
+                        <input type="number" class="form-control" id="retention" name="retention" 
+                            value="5" min="1" max="100">
+                        <div class="form-text">Number of snapshots to keep</div>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Schedule</button>
+        </form>
+    </div>
+    <div class="card-footer text-muted">
+        <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Automated snapshots may temporarily pause the container during creation.</small>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Snapshot Schedules</h5>
+    </div>
+    <div class="card-body">
+        {% if schedules %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name Prefix</th>
+                            <th>Frequency</th>
+                            <th>Retention</th>
+                            <th>Next Run</th>
+                            <th>Last Run</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in schedules %}
+                            <tr>
+                                <td>{{ schedule.name_prefix }}</td>
+                                <td>
+                                    {% if schedule.schedule_type == 'hourly' %}
+                                        Every {{ schedule.schedule_value }} hour(s)
+                                    {% elif schedule.schedule_type == 'daily' %}
+                                        Every {{ schedule.schedule_value }} day(s)
+                                    {% elif schedule.schedule_type == 'weekly' %}
+                                        Every {{ schedule.schedule_value }} week(s)
+                                    {% elif schedule.schedule_type == 'monthly' %}
+                                        Every {{ schedule.schedule_value }} month(s)
+                                    {% endif %}
+                                </td>
+                                <td>Keep {{ schedule.retention }} snapshot(s)</td>
+                                <td>{{ schedule.next_run|timestamp_to_date }}</td>
+                                <td>
+                                    {% if schedule.last_run %}
+                                        {{ schedule.last_run|timestamp_to_date }}
+                                    {% else %}
+                                        <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if schedule.enabled %}
+                                        <span class="badge bg-success">Enabled</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <form action="{{ url_for('toggle_container_snapshot_schedule', host_id=host_id, node=node, vmid=vmid, schedule_id=schedule.id) }}" method="post" class="d-inline">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                {% if schedule.enabled %}
+                                                    <i class="fas fa-pause"></i> Disable
+                                                {% else %}
+                                                    <i class="fas fa-play"></i> Enable
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                        
+                                        <form action="{{ url_for('delete_container_snapshot_schedule', host_id=host_id, node=node, vmid=vmid, schedule_id=schedule.id) }}" method="post" class="d-inline">
+                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this schedule?');">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No snapshot schedules found for this container.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

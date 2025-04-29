@@ -8,6 +8,8 @@ import pickle
 import threading
 import datetime
 import time  # Import time module for cache TTL
+import schedule  # For snapshot scheduling
+import re  # For regex pattern matching
 
 # Load environment variables
 load_dotenv()
