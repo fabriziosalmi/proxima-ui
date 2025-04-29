@@ -1,4 +1,4 @@
-# Proxmox UI
+# Proxima UI
 
 A simple Flask/Bootstrap web interface to manage Proxmox hosts, virtual machines, and containers.
 

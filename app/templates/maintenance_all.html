@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - All Maintenance Windows{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-wrench"></i> Maintenance Overview</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Active Maintenance Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-exclamation-triangle text-warning me-2"></i>Nodes In Maintenance
+        </h5>
+    </div>
+    <div class="card-body">
+        {% set active_maintenance = history|selectattr('end_time', 'none')|list %}
+        {% if active_maintenance %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Host</th>
+                            <th>Node</th>
+                            <th>Started</th>
+                            <th>Duration</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in active_maintenance %}
+                            <tr>
+                                <td>{{ record.host_id }}</td>
+                                <td>{{ record.node }}</td>
+                                <td>{{ record.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% set duration = (now - record.start_time).total_seconds() // 60 %}
+                                    {% if duration < 60 %}
+                                        {{ duration }} min
+                                    {% else %}
+                                        {{ (duration // 60)|int }} hr {{ (duration % 60)|int }} min
+                                    {% endif %}
+                                </td>
+                                <td>{{ record.notes }}</td>
+                                <td>
+                                    <a href="{{ url_for('node_maintenance', host_id=record.host_id, node=record.node) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i> Manage
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> No nodes are currently in maintenance mode.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Scheduled Maintenance Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-calendar-alt me-2"></i>Upcoming Maintenance Windows
+        </h5>
+    </div>
+    <div class="card-body">
+        {% set upcoming_maintenance = scheduled|selectattr('completed', 'equalto', false)|list|sort(attribute='scheduled_start') %}
+        {% if upcoming_maintenance %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Host</th>
+                            <th>Node</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Duration</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in upcoming_maintenance %}
+                            <tr>
+                                <td>{{ schedule.host_id }}</td>
+                                <td>{{ schedule.node }}</td>
+                                <td>{{ schedule.scheduled_start.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ schedule.scheduled_end.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% set duration = (schedule.scheduled_end - schedule.scheduled_start).total_seconds() // 60 %}
+                                    {% if duration < 60 %}
+                                        {{ duration }} min
+                                    {% else %}
+                                        {{ (duration // 60)|int }} hr {{ (duration % 60)|int }} min
+                                    {% endif %}
+                                </td>
+                                <td>{{ schedule.notes }}</td>
+                                <td>
+                                    <a href="{{ url_for('node_maintenance', host_id=schedule.host_id, node=schedule.node) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i> Manage
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> No upcoming maintenance windows are scheduled.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Maintenance History Card -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-history me-2"></i>Recent Maintenance History
+        </h5>
+    </div>
+    <div class="card-body">
+        {% set completed_maintenance = history|rejectattr('end_time', 'none')|list|sort(attribute='end_time', reverse=true) %}
+        {% if completed_maintenance %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Host</th>
+                            <th>Node</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Duration</th>
+                            <th>Type</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in completed_maintenance %}
+                            <tr>
+                                <td>{{ record.host_id }}</td>
+                                <td>{{ record.node }}</td>
+                                <td>{{ record.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ record.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% set duration = (record.end_time - record.start_time).total_seconds() // 60 %}
+                                    {% if duration < 60 %}
+                                        {{ duration }} min
+                                    {% else %}
+                                        {{ (duration // 60)|int }} hr {{ (duration % 60)|int }} min
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.scheduled %}
+                                        <span class="badge bg-primary">Scheduled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Manual</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ record.notes }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> No maintenance history available.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

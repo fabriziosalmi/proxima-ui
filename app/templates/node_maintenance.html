@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+
+{% block title %}Proxmox UI - Node Maintenance{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
+        <li class="breadcrumb-item active">Maintenance</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-wrench"></i> Node Maintenance: {{ node }}</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Node Details
+        </a>
+    </div>
+</div>
+
+<!-- Status and Actions Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-info-circle me-2"></i>Maintenance Status
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <span class="fs-2">
+                            {% if in_maintenance %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">
+                            {% if in_maintenance %}
+                                Node is in maintenance mode
+                            {% else %}
+                                Node is in normal operation
+                            {% endif %}
+                        </h5>
+                        <p class="text-muted mb-0">
+                            {% if in_maintenance %}
+                                The node is currently under maintenance.
+                            {% else %}
+                                The node is currently accepting new workloads.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-end">
+                    {% if in_maintenance %}
+                        <form action="{{ url_for('node_maintenance', host_id=host_id, node=node) }}" method="post">
+                            <input type="hidden" name="action" value="disable_maintenance">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-play-circle me-1"></i> End Maintenance Mode
+                            </button>
+                        </form>
+                    {% else %}
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#enableMaintenanceModal">
+                            <i class="fas fa-pause-circle me-1"></i> Enable Maintenance Mode
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Resource status summary -->
+        <div class="mt-4">
+            <h6>Resource Summary</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Resource Type</th>
+                            <th>Total</th>
+                            <th>Running</th>
+                            <th>Stopped</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Virtual Machines</td>
+                            <td>{{ vms|length }}</td>
+                            <td>{{ vms|selectattr('status', 'equalto', 'running')|list|length }}</td>
+                            <td>{{ vms|rejectattr('status', 'equalto', 'running')|list|length }}</td>
+                        </tr>
+                        <tr>
+                            <td>Containers</td>
+                            <td>{{ containers|length }}</td>
+                            <td>{{ containers|selectattr('status', 'equalto', 'running')|list|length }}</td>
+                            <td>{{ containers|rejectattr('status', 'equalto', 'running')|list|length }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scheduled Maintenance Card -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-calendar-alt me-2"></i>Scheduled Maintenance
+        </h5>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleMaintenanceModal">
+            <i class="fas fa-plus me-1"></i> Schedule Maintenance
+        </button>
+    </div>
+    <div class="card-body">
+        {% if scheduled_maintenance %}
+            <div class="alert alert-info">
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Maintenance window scheduled</h5>
+                        <p class="mb-1">
+                            Start: {{ scheduled_maintenance.scheduled_start.strftime('%Y-%m-%d %H:%M') }}<br>
+                            End: {{ scheduled_maintenance.scheduled_end.strftime('%Y-%m-%d %H:%M') }}
+                        </p>
+                        {% if scheduled_maintenance.notes %}
+                            <p class="mb-1"><strong>Notes:</strong> {{ scheduled_maintenance.notes }}</p>
+                        {% endif %}
+                        
+                        <div class="mt-2">
+                            <form action="{{ url_for('node_maintenance', host_id=host_id, node=node) }}" method="post" class="d-inline">
+                                <input type="hidden" name="action" value="cancel_schedule">
+                                <input type="hidden" name="schedule_id" value="{{ scheduled_maintenance.id }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fas fa-times me-1"></i> Cancel Scheduled Maintenance
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-light border">
+                <p class="mb-0">No maintenance windows are currently scheduled for this node.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Maintenance History Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-history me-2"></i>Maintenance History
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if maintenance_history %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Duration</th>
+                            <th>Type</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in maintenance_history|sort(attribute='start_time', reverse=True) %}
+                            <tr>
+                                <td>{{ record.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if record.end_time %}
+                                        {{ record.end_time.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                        <span class="badge bg-warning">In Progress</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.end_time %}
+                                        {% set duration = (record.end_time - record.start_time).total_seconds() // 60 %}
+                                        {% if duration < 60 %}
+                                            {{ duration }} min
+                                        {% else %}
+                                            {{ (duration // 60)|int }} hr {{ (duration % 60)|int }} min
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-warning">In Progress</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.scheduled %}
+                                        <span class="badge bg-primary">Scheduled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Manual</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ record.notes }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-light border">
+                <p class="mb-0">No maintenance history available for this node.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Enable Maintenance Mode Modal -->
+<div class="modal fade" id="enableMaintenanceModal" tabindex="-1" aria-labelledby="enableMaintenanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="enableMaintenanceModalLabel">Enable Maintenance Mode</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('node_maintenance', host_id=host_id, node=node) }}" method="post">
+                <input type="hidden" name="action" value="enable_maintenance">
+                
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Putting this node into maintenance mode will prevent new VMs and containers from being started on it.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Maintenance Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Optional notes about this maintenance"></textarea>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="migrate_vms" name="migrate_vms">
+                        <label class="form-check-label" for="migrate_vms">Migrate Virtual Machines and Containers</label>
+                        <div class="form-text">If checked, running VMs and containers will be migrated to another node.</div>
+                    </div>
+                    
+                    <div id="migrationOptions" style="display: none;">
+                        <div class="mb-3">
+                            <label for="target_node" class="form-label">Target Node</label>
+                            <select class="form-select" id="target_node" name="target_node">
+                                <option value="">Select target node</option>
+                                {% for target_node in available_nodes %}
+                                    <option value="{{ target_node.node }}">{{ target_node.node }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="online_migration" name="online_migration" checked>
+                            <label class="form-check-label" for="online_migration">Use Online Migration</label>
+                            <div class="form-text">If checked, running VMs and containers will be live-migrated without downtime. Otherwise, they will be shut down first.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>Select VMs and Containers to Exclude from Migration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="mb-2">Virtual Machines</h6>
+                                    {% for vm in vms %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="exclude_vm_{{ vm.vmid }}" name="exclude_vm_{{ vm.vmid }}">
+                                            <label class="form-check-label" for="exclude_vm_{{ vm.vmid }}">
+                                                {{ vm.name }} (ID: {{ vm.vmid }}) 
+                                                {% if vm.status == 'running' %}
+                                                    <span class="badge bg-success">Running</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ vm.status }}</span>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6 class="mb-2">Containers</h6>
+                                    {% for container in containers %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="exclude_ct_{{ container.vmid }}" name="exclude_ct_{{ container.vmid }}">
+                                            <label class="form-check-label" for="exclude_ct_{{ container.vmid }}">
+                                                {{ container.name }} (ID: {{ container.vmid }})
+                                                {% if container.status == 'running' %}
+                                                    <span class="badge bg-success">Running</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ container.status }}</span>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Enable Maintenance Mode</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Maintenance Modal -->
+<div class="modal fade" id="scheduleMaintenanceModal" tabindex="-1" aria-labelledby="scheduleMaintenanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleMaintenanceModalLabel">Schedule Maintenance Window</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('node_maintenance', host_id=host_id, node=node) }}" method="post">
+                <input type="hidden" name="action" value="schedule_maintenance">
+                
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_time" class="form-label">Start Time</label>
+                                <input type="time" class="form-control" id="start_time" name="start_time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Maintenance Duration</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="duration_hours" name="duration_hours" min="0" value="1">
+                                    <span class="input-group-text">hours</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="duration_minutes" name="duration_minutes" min="0" max="59" value="0">
+                                    <span class="input-group-text">minutes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="schedule_notes" class="form-label">Maintenance Notes</label>
+                        <textarea class="form-control" id="schedule_notes" name="schedule_notes" rows="2" placeholder="Optional notes about this scheduled maintenance"></textarea>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="schedule_migrate_vms" name="schedule_migrate_vms">
+                        <label class="form-check-label" for="schedule_migrate_vms">Automatically Migrate Resources</label>
+                        <div class="form-text">If checked, running VMs and containers will be automatically migrated at the start of maintenance.</div>
+                    </div>
+                    
+                    <div id="scheduleTargetOptions" style="display: none;">
+                        <div class="mb-3">
+                            <label for="schedule_target_node" class="form-label">Target Node</label>
+                            <select class="form-select" id="schedule_target_node" name="schedule_target_node">
+                                <option value="">Select target node</option>
+                                {% for target_node in available_nodes %}
+                                    <option value="{{ target_node.node }}">{{ target_node.node }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="schedule_online_migration" name="schedule_online_migration" checked>
+                            <label class="form-check-label" for="schedule_online_migration">Use Online Migration</label>
+                            <div class="form-text">If checked, running VMs and containers will be live-migrated without downtime.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Schedule Maintenance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Set default date for scheduled maintenance to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const year = tomorrow.getFullYear();
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const day = String(tomorrow.getDate()).padStart(2, '0');
+        
+        $('#start_date').val(`${year}-${month}-${day}`);
+        
+        // Set default time to 01:00 AM
+        $('#start_time').val('01:00');
+        
+        // Toggle migration options
+        $('#migrate_vms').change(function() {
+            if ($(this).is(':checked')) {
+                $('#migrationOptions').slideDown();
+            } else {
+                $('#migrationOptions').slideUp();
+            }
+        });
+        
+        // Toggle schedule target options
+        $('#schedule_migrate_vms').change(function() {
+            if ($(this).is(':checked')) {
+                $('#scheduleTargetOptions').slideDown();
+            } else {
+                $('#scheduleTargetOptions').slideUp();
+            }
+        });
+    });
+</script>
+{% endblock %}
