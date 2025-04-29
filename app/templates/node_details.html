@@ -54,6 +54,122 @@
 <!-- Resource Alerts Container -->
 <div id="node-resource-alerts-container"></div>
 
+<!-- Resource Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Virtual Machines</h6>
+                        <h2 class="mt-2 mb-0">{{ vms|length }}</h2>
+                        <small>{{ vms|selectattr('status', 'equalto', 'running')|list|length }} running</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-desktop fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Containers</h6>
+                        <h2 class="mt-2 mb-0">{{ containers|length }}</h2>
+                        <small>{{ containers|selectattr('status', 'equalto', 'running')|list|length }} running</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-cube fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-secondary text-white h-100">
+            <div class="card-body">
+                <div>
+                    <h6 class="card-title mb-0"><i class="fas fa-heartbeat me-1"></i> Node Health</h6>
+                    
+                    <!-- CPU Health -->
+                    <div class="d-flex align-items-center mt-2">
+                        <small><i class="fas fa-microchip me-1"></i>CPU:</small>
+                        <div class="progress ms-2 flex-grow-1" style="height: 0.6rem;">
+                            <div class="progress-bar 
+                                {% if node_status.cpu * 100 < 50 %}
+                                    bg-success
+                                {% elif node_status.cpu * 100 < 80 %}
+                                    bg-warning
+                                {% else %}
+                                    bg-danger
+                                {% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ node_status.cpu * 100 }}%;" 
+                                 aria-valuenow="{{ node_status.cpu * 100 }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <small class="ms-1">{{ (node_status.cpu * 100)|round(1) }}%</small>
+                    </div>
+                    
+                    <!-- Memory Health -->
+                    <div class="d-flex align-items-center mt-2">
+                        <small><i class="fas fa-memory me-1"></i>RAM:</small>
+                        <div class="progress ms-2 flex-grow-1" style="height: 0.6rem;">
+                            <div class="progress-bar 
+                                {% if (node_status.memory.used / node_status.memory.total * 100) < 50 %}
+                                    bg-success
+                                {% elif (node_status.memory.used / node_status.memory.total * 100) < 80 %}
+                                    bg-warning
+                                {% else %}
+                                    bg-danger
+                                {% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ (node_status.memory.used / node_status.memory.total * 100)|round(2) }}%;" 
+                                 aria-valuenow="{{ (node_status.memory.used / node_status.memory.total * 100)|round(2) }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <small class="ms-1">{{ (node_status.memory.used / node_status.memory.total * 100)|round(1) }}%</small>
+                    </div>
+                    
+                    <!-- Storage Health -->
+                    <div class="d-flex align-items-center mt-2">
+                        <small><i class="fas fa-hdd me-1"></i>Disk:</small>
+                        <div class="progress ms-2 flex-grow-1" style="height: 0.6rem;">
+                            <div class="progress-bar 
+                                {% if node_status.rootfs.used / node_status.rootfs.total * 100 < 50 %}
+                                    bg-success
+                                {% elif node_status.rootfs.used / node_status.rootfs.total * 100 < 80 %}
+                                    bg-warning
+                                {% else %}
+                                    bg-danger
+                                {% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ node_status.rootfs.used / node_status.rootfs.total * 100 }}%;" 
+                                 aria-valuenow="{{ node_status.rootfs.used / node_status.rootfs.total * 100 }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <small class="ms-1">{{ (node_status.rootfs.used / node_status.rootfs.total * 100)|round(1) }}%</small>
+                    </div>
+                </div>
+                
+                <div class="mt-3 pt-2 border-top border-light">
+                    <small class="text-light">Uptime:</small>
+                    <div class="uptime-display">{{ (node_status.uptime / 86400)|round(1) }} days</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Node Health Status Row -->
 <div class="row mb-4">
     <div class="col-12">
