@@ -178,12 +178,12 @@
                                 {% for node in stats.nodes %}
                                 <tr class="{% if node.status != 'online' %}table-danger{% endif %}">
                                     <td>
-                                        <a href="{{ url_for('host_details', host_id=node.host_id) }}" class="fw-medium text-decoration-none">
-                                            {{ node.host_id }}
+                                        <a href="{{ url_for('host_details', host_id=node.host_id) }}" class="text-decoration-none rounded-3 px-2 py-1 bg-primary text-white d-inline-block">
+                                            {{ node.host_id|replace(':8006', '') }}
                                         </a>
                                     </td>
                                     <td>
-                                        <a href="{{ url_for('node_details', host_id=node.host_id, node=node.name) }}" class="fw-medium text-decoration-none">
+                                        <a href="{{ url_for('node_details', host_id=node.host_id, node=node.name) }}" class="text-decoration-none rounded-3 px-3 py-1 bg-primary text-white d-inline-block">
                                             {{ node.name }}
                                         </a>
                                     </td>
@@ -326,12 +326,17 @@
         }
         
         // Clean up host names by removing port numbers
-        document.querySelectorAll('.card-header h5').forEach(header => {
-            const text = header.innerText;
-            if (text.includes(':8006')) {
-                header.innerText = text.replace(':8006', '');
-            }
-        });
+        function removePortNumbers() {
+            document.querySelectorAll('a[href*="host_details"]').forEach(element => {
+                if (element.innerText && element.innerText.includes(':8006')) {
+                    element.innerText = element.innerText.replace(':8006', '');
+                }
+            });
+        }
+        
+        // Run cleanup immediately and after a short delay to ensure DOM is fully loaded
+        removePortNumbers();
+        setTimeout(removePortNumbers, 100);
         
         // Initialize tooltips
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

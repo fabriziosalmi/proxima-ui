@@ -254,8 +254,15 @@
                                                 data-vmid="{{ vm.vmid }}" data-status="{{ vm.status }}" data-node="{{ node }}">
                                         </div>
                                     </td>
-                                    <td data-value="{{ vm.vmid }}">{{ vm.vmid }}</td>
-                                    <td data-value="{{ vm.name }}">{{ vm.name }}</td>
+                                    <td data-value="{{ vm.vmid }}">
+                                        <span class="badge bg-success text-white rounded-3 px-2 py-1">{{ vm.vmid }}</span>
+                                    </td>
+                                    <td data-value="{{ vm.name }}">
+                                        <a href="{{ url_for('vm_details', host_id=host_id, node=node, vmid=vm.vmid) }}" 
+                                           class="text-decoration-none rounded-3 px-3 py-1 bg-success text-white d-inline-block">
+                                            {{ vm.name }}
+                                        </a>
+                                    </td>
                                     <td data-value="{{ vm.status }}">
                                         {% if vm.status == 'running' %}
                                             <span class="badge bg-success">Running</span>
@@ -371,8 +378,15 @@
                                                 data-vmid="{{ container.vmid }}" data-status="{{ container.status }}" data-node="{{ node }}">
                                         </div>
                                     </td>
-                                    <td data-value="{{ container.vmid }}">{{ container.vmid }}</td>
-                                    <td data-value="{{ container.name }}">{{ container.name }}</td>
+                                    <td data-value="{{ container.vmid }}">
+                                        <span class="badge bg-info text-white rounded-3 px-2 py-1">{{ container.vmid }}</span>
+                                    </td>
+                                    <td data-value="{{ container.name }}">
+                                        <a href="{{ url_for('container_details', host_id=host_id, node=node, vmid=container.vmid) }}" 
+                                           class="text-decoration-none rounded-3 px-3 py-1 bg-info text-white d-inline-block">
+                                            {{ container.name }}
+                                        </a>
+                                    </td>
                                     <td data-value="{{ container.status }}">
                                         {% if container.status == 'running' %}
                                             <span class="badge bg-success">Running</span>
