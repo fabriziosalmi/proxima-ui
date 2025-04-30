@@ -42,6 +42,37 @@
     --progress-bg: #e9ecef;
 }
 
+/* Font size utility class for smaller text */
+.fs-7 {
+    font-size: 0.85rem !important;
+}
+
+/* Hover effect styles for action buttons */
+.hover-success:hover {
+    background-color: var(--success-color) !important;
+    border-color: var(--success-color) !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.hover-danger:hover {
+    background-color: var(--danger-color) !important;
+    border-color: var(--danger-color) !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.hover-warning:hover {
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
+    color: #212529 !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.hover-info:hover {
+    background-color: var(--info-color) !important;
+    border-color: var(--info-color) !important;
+    transition: all 0.2s ease-in-out;
+}
+
 /* General layout styles */
 html, body {
     height: 100%;
