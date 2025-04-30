@@ -128,7 +128,7 @@
                                         </td>
                                         <td>
                                             <a href="{{ url_for('node_details', host_id=vm.host_id, node=vm.node) }}" class="text-decoration-none rounded-3 px-2 py-1 bg-primary text-white d-inline-block">
-                                                {{ vm.node }}
+                                                <strong>{{ vm.node }}</strong>
                                             </a>
                                         </td>
                                         <td>
@@ -136,7 +136,7 @@
                                         </td>
                                         <td>
                                             <a href="{{ url_for('vm_details', host_id=vm.host_id, node=vm.node, vmid=vm.vmid) }}" class="text-decoration-none rounded-3 px-3 py-1 bg-success text-white d-inline-block">
-                                                {{ vm.name }}
+                                                <strong>{{ vm.name }}</strong>
                                             </a>
                                         </td>
                                         <td>
@@ -247,7 +247,7 @@
                                         </td>
                                         <td>
                                             <a href="{{ url_for('node_details', host_id=container.host_id, node=container.node) }}" class="text-decoration-none rounded-3 px-2 py-1 bg-primary text-white d-inline-block">
-                                                {{ container.node }}
+                                                <strong>{{ container.node }}</strong>
                                             </a>
                                         </td>
                                         <td>
@@ -255,7 +255,7 @@
                                         </td>
                                         <td>
                                             <a href="{{ url_for('container_details', host_id=container.host_id, node=container.node, vmid=container.vmid) }}" class="text-decoration-none rounded-3 px-3 py-1 bg-info text-white d-inline-block">
-                                                {{ container.name }}
+                                                <strong>{{ container.name }}</strong>
                                             </a>
                                         </td>
                                         <td>
@@ -360,12 +360,12 @@
                                     <tr class="{% if node.status != 'online' %}table-danger{% endif %}">
                                         <td>
                                             <a href="{{ url_for('host_details', host_id=node.host_id) }}" class="text-decoration-none rounded-3 px-2 py-1 bg-primary text-white d-inline-block">
-                                                {{ node.host_id }}
+                                                {{ node.host_id|replace(':8006', '') }}
                                             </a>
                                         </td>
                                         <td>
                                             <a href="{{ url_for('node_details', host_id=node.host_id, node=node.node) }}" class="text-decoration-none rounded-3 px-3 py-1 bg-primary text-white d-inline-block">
-                                                {{ node.node }}
+                                                <strong>{{ node.node }}</strong>
                                             </a>
                                         </td>
                                         <td>
@@ -449,13 +449,13 @@
                                     {% for storage in storage_results %}
                                     <tr>
                                         <td>
-                                            <a href="{{ url_for('host_details', host_id=storage.host_id) }}" class="fw-medium text-decoration-none">
-                                                {{ storage.host_id }}
+                                            <a href="{{ url_for('host_details', host_id=storage.host_id) }}" class="text-decoration-none rounded-3 px-2 py-1 bg-primary text-white d-inline-block">
+                                                {{ storage.host_id|replace(':8006', '') }}
                                             </a>
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('node_details', host_id=storage.host_id, node=storage.node) }}" class="fw-medium text-decoration-none">
-                                                {{ storage.node }}
+                                            <a href="{{ url_for('node_details', host_id=storage.host_id, node=storage.node) }}" class="text-decoration-none rounded-3 px-2 py-1 bg-primary text-white d-inline-block">
+                                                <strong>{{ storage.node }}</strong>
                                             </a>
                                         </td>
                                         <td>{{ storage.storage }}</td>

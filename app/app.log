@@ -36,3 +36,6 @@
 [2025-04-30 10:17:06,588] [INFO] [app] Home page accessed, found 1 configured hosts
 [2025-04-30 10:18:08,901] [INFO] [app] Home page accessed, found 1 configured hosts
 [2025-04-30 10:18:43,821] [INFO] [app] Home page accessed, found 1 configured hosts
+[2025-04-30 10:20:36,240] [WARNING] [app] Failed to get df data for container 301: 501 Not Implemented: Method 'GET /nodes/dell/lxc/301/df' not implemented
+[2025-04-30 10:20:45,195] [INFO] [app] Home page accessed, found 1 configured hosts
+[2025-04-30 10:26:39,568] [INFO] [app] Home page accessed, found 1 configured hosts
