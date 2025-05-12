@@ -9,16 +9,23 @@
     <div class="col-12">
         <ul class="nav nav-tabs" id="userTabs" role="tablist">
             <li class="nav-item">
-                <a class="nav-link active" id="users-tab" data-toggle="tab" href="#users" role="tab" aria-controls="users" aria-selected="true">Users</a>
+                <a class="nav-link active" id="users-tab" data-bs-toggle="tab"                    <div class="mb-3">
+                        <label for="groupid">Group ID</label>
+                        <input type="text" class="form-control" id="groupid" name="groupid" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="comment">Comment</label>
+                        <input type="text" class="form-control" id="comment" name="comment">
+                    </div>users" role="tab" aria-controls="users" aria-selected="true">Users</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" id="groups-tab" data-toggle="tab" href="#groups" role="tab" aria-controls="groups" aria-selected="false">Groups</a>
+                <a class="nav-link" id="groups-tab" data-bs-toggle="tab" href="#groups" role="tab" aria-controls="groups" aria-selected="false">Groups</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" id="roles-tab" data-toggle="tab" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
+                <a class="nav-link" id="roles-tab" data-bs-toggle="tab" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" id="permissions-tab" data-toggle="tab" href="#permissions" role="tab" aria-controls="permissions" aria-selected="false">Permissions</a>
+                <a class="nav-link" id="permissions-tab" data-bs-toggle="tab" href="#permissions" role="tab" aria-controls="permissions" aria-selected="false">Permissions</a>
             </li>
         </ul>
     </div>
@@ -30,7 +37,7 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">User Accounts</h5>
-                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createUserModal">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createUserModal">
                     <i class="fas fa-plus"></i> Add User
                 </button>
             </div>
@@ -57,9 +64,9 @@
                                 <td>{{ user.groups|default('-', true) }}</td>
                                 <td>
                                     {% if user.enable %}
-                                    <span class="badge badge-success">Enabled</span>
+                                    <span class="badge bg-success">Enabled</span>
                                     {% else %}
-                                    <span class="badge badge-danger">Disabled</span>
+                                    <span class="badge bg-danger">Disabled</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -72,8 +79,8 @@
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <button type="button" class="btn btn-secondary"
-                                                data-toggle="modal" 
-                                                data-target="#editUserModal"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#editUserModal"
                                                 data-userid="{{ user.userid }}"
                                                 data-firstname="{{ user.firstname|default('', true) }}"
                                                 data-lastname="{{ user.lastname|default('', true) }}"
@@ -84,8 +91,8 @@
                                             <i class="fas fa-edit"></i>
                                         </button>
                                         <button type="button" class="btn btn-danger" 
-                                                data-toggle="modal" 
-                                                data-target="#deleteUserModal"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteUserModal"
                                                 data-userid="{{ user.userid }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -105,7 +112,7 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">User Groups</h5>
-                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createGroupModal">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createGroupModal">
                     <i class="fas fa-plus"></i> Add Group
                 </button>
             </div>
@@ -137,8 +144,8 @@
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <button type="button" class="btn btn-danger" 
-                                                data-toggle="modal" 
-                                                data-target="#deleteGroupModal"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteGroupModal"
                                                 data-groupid="{{ group.groupid }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -276,53 +283,51 @@
             <form action="{{ url_for('create_user', host_id=host_id) }}" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title" id="createUserModalLabel">Create User</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="userid">Username</label>
                         <input type="text" class="form-control" id="userid" name="userid" required>
                         <small class="form-text text-muted">Format: username@realm (e.g., john@pam, admin@pve)</small>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="password">Password</label>
                         <input type="password" class="form-control" id="password" name="password" required>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label for="firstname">First Name</label>
                             <input type="text" class="form-control" id="firstname" name="firstname">
                         </div>
-                        <div class="form-group col-md-6">
+                        <div class="col-md-6 mb-3">
                             <label for="lastname">Last Name</label>
                             <input type="text" class="form-control" id="lastname" name="lastname">
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="email">Email</label>
                         <input type="email" class="form-control" id="email" name="email">
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="groups">Groups</label>
                         <input type="text" class="form-control" id="groups" name="groups">
                         <small class="form-text text-muted">Comma-separated list of groups</small>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="expire">Expire Date</label>
                         <input type="date" class="form-control" id="expire" name="expire">
                         <small class="form-text text-muted">Leave empty for no expiration</small>
                     </div>
-                    <div class="form-group">
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="enable" name="enable" checked>
-                            <label class="custom-control-label" for="enable">Enable User</label>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="enable" name="enable" checked>
+                            <label class="form-check-label" for="enable">Enable User</label>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create User</button>
                 </div>
             </form>
@@ -337,53 +342,51 @@
             <form id="editUserForm" action="{{ url_for('update_user', host_id=host_id, userid='PLACEHOLDER') }}" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label>Username</label>
                         <input type="text" class="form-control" id="edit_userid" readonly>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="edit_password">Password</label>
                         <input type="password" class="form-control" id="edit_password" name="password" placeholder="Leave empty to keep current password">
                         <small class="form-text text-muted">Leave empty to keep the current password</small>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label for="edit_firstname">First Name</label>
                             <input type="text" class="form-control" id="edit_firstname" name="firstname">
                         </div>
-                        <div class="form-group col-md-6">
+                        <div class="col-md-6 mb-3">
                             <label for="edit_lastname">Last Name</label>
                             <input type="text" class="form-control" id="edit_lastname" name="lastname">
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="edit_email">Email</label>
                         <input type="email" class="form-control" id="edit_email" name="email">
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="edit_groups">Groups</label>
                         <input type="text" class="form-control" id="edit_groups" name="groups">
                         <small class="form-text text-muted">Comma-separated list of groups</small>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="edit_expire">Expire Date</label>
                         <input type="date" class="form-control" id="edit_expire" name="expire">
                         <small class="form-text text-muted">Leave empty for no expiration</small>
                     </div>
-                    <div class="form-group">
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="edit_enable" name="enable">
-                            <label class="custom-control-label" for="edit_enable">Enable User</label>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="edit_enable" name="enable">
+                            <label class="form-check-label" for="edit_enable">Enable User</label>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
@@ -398,16 +401,14 @@
             <form id="deleteUserForm" action="{{ url_for('delete_user', host_id=host_id, userid='PLACEHOLDER') }}" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title" id="deleteUserModalLabel">Delete User</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete the user <strong id="delete_userid_display"></strong>?</p>
                     <p class="text-danger">This action cannot be undone!</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger">Delete User</button>
                 </div>
             </form>
@@ -422,9 +423,7 @@
             <form action="{{ url_for('create_group', host_id=host_id) }}" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title" id="createGroupModalLabel">Create Group</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -437,7 +436,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create Group</button>
                 </div>
             </form>
@@ -452,16 +451,14 @@
             <form id="deleteGroupForm" action="{{ url_for('delete_group', host_id=host_id, groupid='PLACEHOLDER') }}" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title" id="deleteGroupModalLabel">Delete Group</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete the group <strong id="delete_groupid_display"></strong>?</p>
                     <p class="text-danger">This action cannot be undone! Any users who are members of this group may lose permissions.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger">Delete Group</button>
                 </div>
             </form>
@@ -476,9 +473,7 @@
             <form action="{{ url_for('add_permission', host_id=host_id) }}" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addPermissionModalLabel">Add Permission</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -525,7 +520,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Add Permission</button>
                 </div>
             </form>
@@ -538,70 +533,93 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
-    // Force tabs to be properly initialized
-    $('#userTabs a').on('click', function (e) {
-        e.preventDefault();
-        $(this).tab('show');
+    // Force tabs to be properly initialized using Bootstrap 5 Tab API
+    var triggerTabList = [].slice.call(document.querySelectorAll('#userTabs a'));
+    triggerTabList.forEach(function(triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl);
+        
+        triggerEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            tabTrigger.show();
+        });
     });
     
     // Show the active tab from URL hash, if present
     var hash = window.location.hash;
     if (hash) {
-        $('#userTabs a[href="' + hash + '"]').tab('show');
+        var triggerEl = document.querySelector('#userTabs a[href="' + hash + '"]');
+        if (triggerEl) {
+            var tab = new bootstrap.Tab(triggerEl);
+            tab.show();
+        }
     }
     
     // Update URL hash when tab changes
-    $('#userTabs a').on('shown.bs.tab', function (e) {
-        history.pushState(null, null, e.target.hash);
+    var tabEls = document.querySelectorAll('#userTabs a[data-bs-toggle="tab"]');
+    tabEls.forEach(function(tabEl) {
+        tabEl.addEventListener('shown.bs.tab', function (event) {
+            history.pushState(null, null, event.target.hash);
+        });
     });
     
     // Support for browser back/forward buttons
     window.addEventListener('popstate', function() {
         var hash = window.location.hash;
         if (hash) {
-            $('#userTabs a[href="' + hash + '"]').tab('show');
+            var triggerEl = document.querySelector('#userTabs a[href="' + hash + '"]');
+            if (triggerEl) {
+                var tab = new bootstrap.Tab(triggerEl);
+                tab.show();
+            }
         } else {
-            $('#userTabs a[href="#users"]').tab('show');
+            var triggerEl = document.querySelector('#userTabs a[href="#users"]');
+            if (triggerEl) {
+                var tab = new bootstrap.Tab(triggerEl);
+                tab.show();
+            }
         }
     });
     
     // Ensure modal functionality is properly initialized
-    $('[data-toggle="modal"]').click(function() {
-        var targetModal = $(this).data('target');
-        $(targetModal).modal('show');
+    document.querySelectorAll('[data-bs-toggle="modal"]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var targetModalId = this.getAttribute('data-bs-target');
+            var modalEl = document.querySelector(targetModalId);
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        });
     });
 
     // Handle Edit User Modal
-    $('#editUserModal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget);
-        var userid = button.data('userid');
-        var firstname = button.data('firstname');
-        var lastname = button.data('lastname');
-        var email = button.data('email');
-        var groups = button.data('groups');
-        var enable = button.data('enable');
-        var expire = button.data('expire');
+    document.getElementById('editUserModal').addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        var userid = button.getAttribute('data-userid');
+        var firstname = button.getAttribute('data-firstname');
+        var lastname = button.getAttribute('data-lastname');
+        var email = button.getAttribute('data-email');
+        var groups = button.getAttribute('data-groups');
+        var enable = button.getAttribute('data-enable');
+        var expire = button.getAttribute('data-expire');
         
-        var modal = $(this);
-        modal.find('#edit_userid').val(userid);
-        modal.find('#edit_firstname').val(firstname);
-        modal.find('#edit_lastname').val(lastname);
-        modal.find('#edit_email').val(email);
-        modal.find('#edit_groups').val(groups);
-        modal.find('#edit_enable').prop('checked', enable === 1);
+        document.getElementById('edit_userid').value = userid;
+        document.getElementById('edit_firstname').value = firstname;
+        document.getElementById('edit_lastname').value = lastname;
+        document.getElementById('edit_email').value = email;
+        document.getElementById('edit_groups').value = groups;
+        document.getElementById('edit_enable').checked = enable == 1;
         
         // Format expire date for input (if it exists)
-        if (expire && expire !== 0) {
+        if (expire && expire !== '0') {
             var expireDate = new Date(expire * 1000);
             var formattedDate = expireDate.toISOString().split('T')[0];
-            modal.find('#edit_expire').val(formattedDate);
+            document.getElementById('edit_expire').value = formattedDate;
         } else {
-            modal.find('#edit_expire').val('');
+            document.getElementById('edit_expire').value = '';
         }
         
         // Update the form action URL
         var formAction = "{{ url_for('update_user', host_id=host_id, userid='') }}" + userid;
-        modal.find('#editUserForm').attr('action', formAction);
+        document.getElementById('editUserForm').setAttribute('action', formAction);
     });
     
     // Handle Delete User Modal

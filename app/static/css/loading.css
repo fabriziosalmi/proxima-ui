@@ -1,0 +1,118 @@
+/* Loading skeleton and animation styles */
+.skeleton-loader {
+    background: linear-gradient(
+        90deg,
+        var(--bs-body-bg) 25%,
+        rgba(var(--bs-secondary-rgb), 0.1) 50%,
+        var(--bs-body-bg) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    height: 20px;
+    margin-bottom: 8px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.card-skeleton {
+    height: 200px;
+}
+
+.card-skeleton-header {
+    height: 40px;
+    margin-bottom: 15px;
+}
+
+.card-skeleton-body .skeleton-loader:nth-child(1) {
+    width: 60%;
+}
+
+.card-skeleton-body .skeleton-loader:nth-child(2) {
+    width: 80%;
+}
+
+.card-skeleton-body .skeleton-loader:nth-child(3) {
+    width: 40%;
+}
+
+/* Enhanced loading spinner */
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(var(--bs-primary-rgb), 0.2);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spinner 1s ease-in-out infinite;
+}
+
+@keyframes spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    transition: opacity 0.3s ease-in-out;
+}
+
+[data-bs-theme="dark"] .loading-overlay {
+    background-color: rgba(33, 37, 41, 0.8);
+}
+
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+/* Page transitions */
+.page-transition {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pulse animation for notifications */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.pulse {
+    animation: pulse 1.5s infinite;
+}

@@ -1,0 +1,288 @@
+/* Badge text contrast fix for dark mode */
+[data-bs-theme="dark"] .badge {
+    color: #fff !important;
+}
+
+/* Fix Bootstrap 5 deprecated custom-switch */
+.form-switch {
+    display: inline-block;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.form-switch .form-check-input {
+    cursor: pointer;
+    width: 36px;
+    margin-left: -2.5em;
+    margin-top: 0.1em;
+}
+
+/* Custom styling for the breadcrumb container in dark mode */
+[data-bs-theme="dark"] .breadcrumb-container.bg-dark {
+    background-color: #1a1d20 !important;
+}
+
+/* Fix for modal close button in dark mode */
+[data-bs-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Fix for form-text helper text in dark mode */
+[data-bs-theme="dark"] .form-text {
+    color: #adb5bd !important;
+}
+
+/* Fix for font awesome icons in buttons */
+.btn i.fas, .btn i.far, .btn i.fab {
+    vertical-align: middle;
+}
+
+/* Fix for navigation hover states in dark mode */
+[data-bs-theme="dark"] .nav-link:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Improved button hover states */
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+/* Fix for resource indicator spacing */
+.resource-usage {
+    margin-bottom: 0.75rem;
+}
+
+/* Fix mobile responsiveness issues */
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .breadcrumb-container .badge {
+        font-size: 0.7rem;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+    }
+}
+
+/* Fix for default Bootstrap outline button contrast in dark mode */
+[data-bs-theme="dark"] .btn-outline-secondary {
+    color: #fff;
+    border-color: #6c757d;
+}
+
+[data-bs-theme="dark"] .btn-outline-secondary:hover {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* Additional UI fixes for dark mode and accessibility */
+
+/* Form control styling in dark mode */
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: #303030;
+    border-color: #444;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: #303030;
+    border-color: #375a7f;
+    color: #fff;
+}
+
+/* Checkbox and radio styling for dark mode */
+[data-bs-theme="dark"] .form-check-input {
+    background-color: #303030;
+    border-color: #444;
+}
+
+[data-bs-theme="dark"] .form-check-input:checked {
+    background-color: #375a7f;
+    border-color: #375a7f;
+}
+
+/* Card styling for dark mode */
+[data-bs-theme="dark"] .card {
+    background-color: #2c2c2c;
+    border-color: #444;
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: #262626;
+    border-bottom-color: #444;
+}
+
+/* Table improvements for dark mode */
+[data-bs-theme="dark"] .table {
+    color: #fff;
+    border-color: #444;
+}
+
+[data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .table-hover > tbody > tr:hover {
+    background-color: rgba(255, 255, 255, 0.075);
+}
+
+/* Input group styling */
+[data-bs-theme="dark"] .input-group-text {
+    background-color: #343a40;
+    border-color: #444;
+    color: #fff;
+}
+
+/* List group styling */
+[data-bs-theme="dark"] .list-group-item {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #fff;
+}
+
+/* Accessibility improvements */
+.btn:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(55, 90, 127, 0.5);
+}
+
+/* Ensure proper focus styles for keyboard navigation */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid rgba(55, 90, 127, 0.5);
+    outline-offset: 2px;
+}
+
+/* Custom switch fix for dark mode */
+[data-bs-theme="dark"] .form-switch .form-check-input:checked {
+    background-color: #375a7f;
+    border-color: #375a7f;
+}
+
+[data-bs-theme="dark"] .form-switch .form-check-input:not(:checked) {
+    background-color: #212529;
+    border-color: #444;
+}
+
+/* Fix for dropdown menus in dark mode */
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: #2c2c2c;
+    border-color: #444;
+}
+
+[data-bs-theme="dark"] .dropdown-item {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .dropdown-item:hover,
+[data-bs-theme="dark"] .dropdown-item:focus {
+    color: #fff;
+    background-color: #375a7f;
+}
+
+/* Progress bar improvements for dark mode */
+[data-bs-theme="dark"] .progress {
+    background-color: #212529;
+}
+
+/* Improve pagination styling in dark mode */
+[data-bs-theme="dark"] .page-link {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .page-item.active .page-link {
+    background-color: #375a7f;
+    border-color: #375a7f;
+}
+
+/* Table responsiveness fixes */
+@media (max-width: 767.98px) {
+    /* Make tables more readable on mobile */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Option 1: Allow horizontal scrolling */
+    .table-responsive-scroll {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Option 2: Stack table cells */
+    .table-responsive-stack thead {
+        display: none;
+    }
+    
+    .table-responsive-stack tr {
+        display: block;
+        border: 1px solid #ddd;
+        margin-bottom: 1rem;
+    }
+    
+    .table-responsive-stack td {
+        display: block;
+        text-align: right;
+        border-bottom: 1px solid #ddd;
+        position: relative;
+        padding-left: 50%;
+    }
+    
+    .table-responsive-stack td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        top: 0;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+        padding-top: 0.75rem;
+    }
+}
+
+/* Mobile menu improvements */
+@media (max-width: 991.98px) {
+    .navbar-toggler {
+        margin-right: 0.5rem;
+    }
+    
+    .navbar-collapse {
+        margin-top: 0.5rem;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.5rem 0;
+    }
+}

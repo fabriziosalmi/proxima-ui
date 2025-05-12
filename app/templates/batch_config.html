@@ -3,14 +3,19 @@
 {% block title %}Proxmox UI - Batch Configuration{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}">{{ host_id }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}">{{ node }}</a></li>
-        <li class="breadcrumb-item active">Batch Configuration</li>
-    </ol>
-</nav>
+<!-- Breadcrumb Container -->
+<div class="breadcrumb-container py-2 px-3 mb-3 w-100 rounded-3 bg-dark">
+    <div class="d-flex justify-content-between align-items-center">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-light text-decoration-none">Home</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('host_details', host_id=host_id) }}" class="text-light text-decoration-none">{{ host_id }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('node_details', host_id=host_id, node=node) }}" class="text-light text-decoration-none">{{ node }}</a></li>
+                <li class="breadcrumb-item active text-light">Batch Configuration</li>
+            </ol>
+        </nav>
+    </div>
+</div>
 
 <div class="row mb-4">
     <div class="col">
