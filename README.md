@@ -21,7 +21,7 @@ A simple Flask/Bootstrap web interface to manage Proxmox hosts, virtual machines
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/proxmox-ui.git
+   git clone https://github.com/fabriziosalmi/proxima-ui.git
    cd proxmox-ui
    ```
 
